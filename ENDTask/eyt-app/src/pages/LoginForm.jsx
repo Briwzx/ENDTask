@@ -28,7 +28,7 @@ export function LoginForm({ onSuccess, showToast }) {
       <Field label="Correo electrónico" icon={<IconMail />}>
         <input type="email" required value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="correo@ejemplo.com"
+          placeholder="correo@ejemploss.com"
           className="bg-transparent flex-1 text-sm text-gray-800 outline-none placeholder-gray-400" />
       </Field>
 
