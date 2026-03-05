@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Field, PasswordField } from "../components/FormFields";
 import { IconPhone, IconMail, IconCalendar, IconUser } from "../components/Icons";
 import { getUsers, saveUsers, saveSession } from "../utils/storage";
@@ -7,7 +8,8 @@ import { getUsers, saveUsers, saveSession } from "../utils/storage";
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 100 }, (_, i) => currentYear - i);
 
-export function RegisterForm({ onSuccess, showToast }) {
+export function RegisterForm({ showToast }) {
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     nombre: "", apellido: "", telefono: "",
     email: "", anio: "", password: "", confirm: "",
@@ -57,7 +59,7 @@ export function RegisterForm({ onSuccess, showToast }) {
     showToast(`¡Registro exitoso! Bienvenido/a, ${form.nombre} 🎉`, "success");
     setTimeout(() => {
       saveSession(newUser);
-      onSuccess(newUser);
+      navigate("/dashboard");
     }, 1500);
   };
 
@@ -67,12 +69,12 @@ export function RegisterForm({ onSuccess, showToast }) {
       <div className="grid grid-cols-2 gap-3">
         <Field label="Nombre" icon={<IconUser />} error={errors.nombre}>
           <input type="text" required value={form.nombre} onChange={ch("nombre")}
-            placeholder="Juan"
+            placeholder="Nombre"
             className="bg-transparent w-full text-sm text-gray-800 outline-none placeholder-gray-400" />
         </Field>
         <Field label="Apellido" icon={<IconUser />} error={errors.apellido}>
           <input type="text" required value={form.apellido} onChange={ch("apellido")}
-            placeholder="Garcsdasía"
+            placeholder="Apellido"
             className="bg-transparent w-full text-sm text-gray-800 outline-none placeholder-gray-400" />
         </Field>
       </div>

@@ -1,13 +1,16 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { IconUser, IconLogout } from "../components/Icons";
-import { clearSession } from "../utils/storage";
+import { clearSession, getSession } from "../utils/storage";
 import { TaskForm }    from "./TaskForm";
 import { Rendimiento } from "./Rendimiento";
 import { AddCurse }    from "./AddCurse";
 
 const NAV_ITEMS = ["TAREAS", "CURSOS", "RENDIMIENTO", "PERFIL"];
 
-export function Dashboard({ user, onLogout }) {
+export function Dashboard() {
+  const navigate = useNavigate();
+  const user = getSession();
   const [activeNav, setActiveNav] = useState("TAREAS");
 
   // Contar tareas por vencer desde localStorage
@@ -21,11 +24,11 @@ export function Dashboard({ user, onLogout }) {
 
   const handleLogout = () => {
     clearSession();
-    onLogout();
+    navigate("/login");
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden" style={{ fontFamily: "'Georgia', serif" }}>
+    <div className="flex h-screen w-screen overflow-hidden" style={{ fontFamily: "'Roboto', sans-serif" }}>
 
       {/* ── Sidebar ─────────────────────────────────────────────── */}
       <aside
@@ -154,6 +157,12 @@ export function Dashboard({ user, onLogout }) {
                   <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Tareas creadas</p>
                   <p className="font-semibold text-gray-700">
                     {JSON.parse(localStorage.getItem("eyt_tasks") || "[]").length}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Cursos registrados</p>
+                  <p className="font-semibold text-gray-700">
+                    {JSON.parse(localStorage.getItem("eyt_courses") || "[]").length}
                   </p>
                 </div>
               </div>

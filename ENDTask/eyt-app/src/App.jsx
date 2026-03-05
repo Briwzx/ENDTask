@@ -1,19 +1,37 @@
-import { useState } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthScreen } from "./pages/AuthScreen";
-import { Dashboard }  from "./pages/Dashboard";
+import { Dashboard } from "./pages/Dashboard";
+import { PrivateRoute } from "./components/PrivateRoute";
 import { getSession } from "./utils/storage";
 
 export default function App() {
-  // Al cargar, intenta recuperar la sesión guardada en localStorage
-  const [user, setUser] = useState(() => getSession());
+  const session = getSession();
 
-  const handleLogin  = (loggedUser) => setUser(loggedUser);
-  const handleLogout = ()           => setUser(null);
+  return (
+    <Router>
+      <Routes>
+        {/* Ruta pública: Login/Register */}
+        <Route
+          path="/login"
+          element={session ? <Navigate to="/dashboard" replace /> : <AuthScreen />}
+        />
 
-  // Si hay usuario activo → mostrar dashboard; si no → pantalla de auth
-  if (user) {
-    return <Dashboard user={user} onLogout={handleLogout} />;
-  }
+        {/* Ruta protegida: Dashboard con navegación interna */}
+        <Route
+          path="/dashboard/*"
+          element={
+            <PrivateRoute>
+              <Dashboard />
+            </PrivateRoute>
+          }
+        />
 
-  return <AuthScreen onLogin={handleLogin} />;
+        {/* Redirección por defecto */}
+        <Route
+          path="*"
+          element={<Navigate to={session ? "/dashboard" : "/login"} replace />}
+        />
+      </Routes>
+    </Router>
+  );
 }

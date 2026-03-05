@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { RegisterForm } from "./RegisterForm";
 import { LoginForm }    from "./LoginForm";
 import { Toast }        from "../components/Toast";
 
-export function AuthScreen({ onLogin }) {
+export function AuthScreen() {
+  const navigate = useNavigate();
   const [tab, setTab]     = useState("register");
   const [toast, setToast] = useState(null);
 
@@ -12,12 +14,16 @@ export function AuthScreen({ onLogin }) {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const handleLogin = (user) => {
+    navigate("/dashboard");
+  };
+
   return (
     <div
       className="min-h-screen flex items-center justify-center py-10 relative"
       style={{
         background: "linear-gradient(160deg, #f9f6ef 0%, #eee8c8 100%)",
-        fontFamily: "'Georgia', serif",
+        fontFamily: "'Roboto', sans-serif",
       }}
     >
       {/* Notificación */}
@@ -65,9 +71,9 @@ export function AuthScreen({ onLogin }) {
 
         {/* Contenido según tab */}
         {tab === "register" ? (
-          <RegisterForm onSuccess={onLogin} showToast={showToast} />
+          <RegisterForm onSuccess={handleLogin} showToast={showToast} />
         ) : (
-          <LoginForm onSuccess={onLogin} showToast={showToast} />
+          <LoginForm onSuccess={handleLogin} showToast={showToast} />
         )}
       </div>
     </div>

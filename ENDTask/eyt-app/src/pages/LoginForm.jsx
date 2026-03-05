@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Field, PasswordField } from "../components/FormFields";
 import { IconMail } from "../components/Icons";
 import { getUsers, saveSession } from "../utils/storage";
 
-export function LoginForm({ onSuccess, showToast }) {
+export function LoginForm({ showToast }) {
+  const navigate = useNavigate();
   const [email, setEmail]     = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw]   = useState(false);
@@ -19,7 +21,7 @@ export function LoginForm({ onSuccess, showToast }) {
     }
 
     saveSession(user);
-    onSuccess(user);
+    navigate("/dashboard");
   };
 
   return (
