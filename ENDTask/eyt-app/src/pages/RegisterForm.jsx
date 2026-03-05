@@ -72,7 +72,7 @@ export function RegisterForm({ onSuccess, showToast }) {
         </Field>
         <Field label="Apellido" icon={<IconUser />} error={errors.apellido}>
           <input type="text" required value={form.apellido} onChange={ch("apellido")}
-            placeholder="García"
+            placeholder="Garcsdasía"
             className="bg-transparent w-full text-sm text-gray-800 outline-none placeholder-gray-400" />
         </Field>
       </div>

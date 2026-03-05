@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const ESTADOS = ["Pendiente", "En progreso", "Completada", "Cancelada"];
 const PRIORIDADES = ["Baja", "Media", "Alta", "Crítica"];
@@ -59,18 +59,49 @@ export function TaskForm({ onTaskCreated }) {
   const [showForm, setShowForm] = useState(false);
   const [etiquetas, setEtiquetas] = useState([]);
   const [nuevaEtiqueta, setNuevaEtiqueta] = useState("");
+  const [error, setError] = useState("");
+  const [cursos, setCursos] = useState([]);
   const [form, setForm] = useState({
     nombre: "",
     descripcion: "",
     estado: "",
     prioridad: "",
+    curso: "",
     inicioMes: "",
     inicioDia: "",
     finMes: "",
     finDia: "",
   });
 
-  const ch = (f) => (e) => setForm((p) => ({ ...p, [f]: e.target.value }));
+  // Cargar cursos desde localStorage
+  useEffect(() => {
+    const cursosSaved = JSON.parse(localStorage.getItem("eyt_courses") || "[]");
+    setCursos(cursosSaved);
+  }, []);
+
+  const ch = (f) => (e) => {
+    setForm((p) => ({ ...p, [f]: e.target.value }));
+    if (['inicioDia', 'inicioMes', 'finDia', 'finMes'].includes(f)) setError("");
+  };
+
+  const getMonthIndex = (mes) => MESES.indexOf(mes);
+
+  const validateDates = () => {
+    const { inicioDia, inicioMes, finDia, finMes } = form;
+    if (!inicioDia || !inicioMes || !finDia || !finMes) return true; // If not all selected, allow (maybe warn later)
+
+    const startMonth = getMonthIndex(inicioMes);
+    const endMonth = getMonthIndex(finMes);
+    const startDay = parseInt(inicioDia);
+    const endDay = parseInt(finDia);
+
+    if (endMonth < startMonth || (endMonth === startMonth && endDay < startDay)) {
+      setError("La fecha de entrega no puede ser anterior a la fecha de inicio.");
+      return false;
+    }
+    setError("");
+    return true;
+  };
 
   const setDesdeHoy = () => {
     const hoy = new Date();
@@ -98,6 +129,7 @@ export function TaskForm({ onTaskCreated }) {
       alert("El nombre es requerido.");
       return;
     }
+    if (!validateDates()) return;
 
     const tarea = {
       id: Date.now(),
@@ -105,6 +137,7 @@ export function TaskForm({ onTaskCreated }) {
       descripcion: form.descripcion,
       estado: form.estado || "Pendiente",
       prioridad: form.prioridad || "Media",
+      curso: form.curso || null,
       inicio:
         form.inicioMes && form.inicioDia
           ? `${form.inicioDia} ${form.inicioMes}`
@@ -126,12 +159,14 @@ export function TaskForm({ onTaskCreated }) {
       descripcion: "",
       estado: "",
       prioridad: "",
+      curso: "",
       inicioMes: "",
       inicioDia: "",
       finMes: "",
       finDia: "",
     });
     setEtiquetas([]);
+    setError("");
     setShowForm(false);
   };
 
@@ -196,8 +231,8 @@ export function TaskForm({ onTaskCreated }) {
               />
             </div>
 
-            {/* Estado + Prioridad */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Estado + Prioridad + Curso */}
+            <div className="grid grid-cols-3 gap-4">
               <SelectField
                 label="Estado"
                 value={form.estado}
@@ -210,6 +245,38 @@ export function TaskForm({ onTaskCreated }) {
                 onChange={ch("prioridad")}
                 options={PRIORIDADES}
               />
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">
+                  Curso:
+                </label>
+                <div className="relative">
+                  <select
+                    value={form.curso}
+                    onChange={ch("curso")}
+                    className="w-full bg-gray-100 rounded-xl px-4 py-3 text-sm text-gray-700 outline-none appearance-none border border-transparent focus:border-yellow-400 focus:bg-white transition-all cursor-pointer"
+                  >
+                    <option value="">Sin curso</option>
+                    {cursos.map((c) => (
+                      <option key={c.id} value={c.nombre}>
+                        {c.nombre}
+                      </option>
+                    ))}
+                  </select>
+                  <svg
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
+              </div>
             </div>
 
             {/* Fechas + Etiquetas */}
@@ -235,7 +302,7 @@ export function TaskForm({ onTaskCreated }) {
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">
-                    Inicio:
+                    Inicio de tarea:
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="relative">
@@ -297,8 +364,9 @@ export function TaskForm({ onTaskCreated }) {
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">
-                    Fin:
+                    Fecha de Entrega:
                   </label>
+                  {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="relative">
                       <select
@@ -430,6 +498,12 @@ export function TaskForm({ onTaskCreated }) {
 // ── Lista de tareas guardadas ─────────────────────────────────────
 function TareasList() {
   const tareas = JSON.parse(localStorage.getItem("eyt_tasks") || "[]");
+  const cursos = JSON.parse(localStorage.getItem("eyt_courses") || "[]");
+
+  const obtenerColorCurso = (nombreCurso) => {
+    const curso = cursos.find((c) => c.nombre === nombreCurso);
+    return curso ? curso.color : null;
+  };
 
   if (tareas.length === 0) {
     return (
@@ -497,6 +571,14 @@ function TareasList() {
               <span className="text-xs text-gray-400">
                 📅 {t.inicio} → {t.fin}
               </span>
+              {t.curso && (
+                <span
+                  className="text-xs px-3 py-1 rounded-lg text-white font-semibold"
+                  style={{ background: obtenerColorCurso(t.curso) || "#c8a84b" }}
+                >
+                  📚 {t.curso}
+                </span>
+              )}
               {t.etiquetas?.map((tag) => (
                 <span
                   key={tag}

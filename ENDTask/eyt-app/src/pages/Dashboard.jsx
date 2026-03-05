@@ -3,8 +3,9 @@ import { IconUser, IconLogout } from "../components/Icons";
 import { clearSession } from "../utils/storage";
 import { TaskForm }    from "./TaskForm";
 import { Rendimiento } from "./Rendimiento";
+import { AddCurse }    from "./AddCurse";
 
-const NAV_ITEMS = ["TAREAS", "RENDIMIENTO", "PERFIL"];
+const NAV_ITEMS = ["TAREAS", "CURSOS", "RENDIMIENTO", "PERFIL"];
 
 export function Dashboard({ user, onLogout }) {
   const [activeNav, setActiveNav] = useState("TAREAS");
@@ -89,6 +90,7 @@ export function Dashboard({ user, onLogout }) {
         <div className="flex items-center justify-between px-10 py-5 border-b border-amber-100 bg-white bg-opacity-70 sticky top-0 z-10">
           <h2 className="text-base font-black tracking-widest text-gray-700">
             {activeNav === "TAREAS"       && "TASK"}
+            {activeNav === "CURSOS"       && "CURSOS"}
             {activeNav === "RENDIMIENTO"  && "DASHBOARD"}
             {activeNav === "PERFIL"       && "PERFIL"}
           </h2>
@@ -108,6 +110,11 @@ export function Dashboard({ user, onLogout }) {
         {/* ── TAREAS ── */}
         {activeNav === "TAREAS" && (
           <TaskForm onTaskCreated={handleTaskCreated} />
+        )}
+
+        {/* ── CURSOS ── */}
+        {activeNav === "CURSOS" && (
+          <AddCurse />
         )}
 
         {/* ── RENDIMIENTO ── */}
