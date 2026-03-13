@@ -178,7 +178,18 @@ export function TaskForm({ onTaskCreated }) {
       etiquetas,
       vence: form.prioridad === "Crítica" || form.prioridad === "Alta",
       completada: false,
-      subtareas,
+      subtareas: [
+        ...subtareas,
+        ...subtareasFormulario
+          .filter(s => s.nombre.trim() && s.dia && s.mes && s.horas)
+          .map((s, i) => ({
+            id: Date.now() + i,
+            nombre: s.nombre.trim(),
+            fecha: `${s.dia} ${s.mes}`,
+            horas: parseInt(s.horas),
+            estado: "Pendiente"
+          }))
+      ],
     };
 
     try {
@@ -218,15 +229,22 @@ export function TaskForm({ onTaskCreated }) {
     <div className="p-8">
       <Toast message={toast?.message} type={toast?.type} />
       {/* Botón + */}
-      <div className="flex justify-center mb-6">
+      <div className="flex flex-col items-center justify-center mb-6">
         <button
           onClick={() => setShowForm(!showForm)}
-          className="w-10 h-10 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-lg hover:scale-110 transition-transform"
+          className="w-12 h-12 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-lg hover:scale-110 transition-transform"
           style={{ background: "linear-gradient(135deg, #c8a84b, #a8882a)" }}
           title="Crear nueva tarea"
         >
           {showForm ? "−" : "+"}
         </button>
+        {tareas.length === 0 && !showForm && (
+          <div className="mt-3 bg-yellow-100 text-yellow-800 px-4 py-1.5 rounded-full shadow-sm animate-bounce">
+            <span className="text-sm font-black tracking-widest uppercase">
+              Crear Tarea
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Formulario */}
@@ -950,6 +968,23 @@ function TareasList({ tareas, setTareas }) {
                           {t.descripcion}
                         </p>
                       )}
+                      {t.subtareas && t.subtareas.length > 0 && (() => {
+                        const totalSub = t.subtareas.length;
+                        const compSub = t.subtareas.filter(s => s.estado === "Completada" || s.estado === "Completado").length;
+                        const percent = Math.round((compSub / totalSub) * 100);
+                        return (
+                          <div className="mt-3 flex items-center gap-3 w-full max-w-xs bg-white p-2 rounded-lg border border-gray-100 shadow-sm">
+                            <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Progreso:</span>
+                            <div className="flex-1 bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all duration-500"
+                                style={{ width: `${percent}%`, background: "linear-gradient(135deg, #52c452, #3da13d)" }}
+                              ></div>
+                            </div>
+                            <span className="text-xs font-black text-green-600">{percent}%</span>
+                          </div>
+                        );
+                      })()}
                       <div className="flex items-center gap-3 mt-2 flex-wrap">
                         <span className="text-xs text-gray-400">
                           📅 {t.inicio} → {t.fin}
