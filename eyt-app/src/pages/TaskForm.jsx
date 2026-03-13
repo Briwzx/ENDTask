@@ -685,6 +685,8 @@ function TareasList({ tareas, setTareas }) {
   const [nuevasSubtareasPorTarea, setNuevasSubtareasPorTarea] = useState({});
   const [toast, setToast] = useState(null);
   const [cursos, setCursos] = useState([]);
+  const [editingDate, setEditingDate] = useState({ id: null, type: null, subId: null });
+  const [editDateForm, setEditDateForm] = useState({ dia: "", mes: "" });
 
   useEffect(() => {
     // We can also fetch courses here or receive them as props, but since they may change we re-fetch them.
@@ -809,6 +811,44 @@ function TareasList({ tareas, setTareas }) {
     if (mesIndex === -1 || !dia) return null;
     const hoy = new Date();
     return new Date(hoy.getFullYear(), mesIndex, parseInt(dia));
+  };
+
+  const startEditDate = (e, tarea, subId = null) => {
+    e.stopPropagation();
+    let fecha = subId ? tarea.subtareas.find(s => s.id === subId).fecha : tarea.fin;
+    if (fecha && fecha !== "—") {
+      const [d, m] = fecha.split(" ");
+      setEditDateForm({ dia: d, mes: m });
+    } else {
+      setEditDateForm({ dia: "", mes: "" });
+    }
+    setEditingDate({ id: tarea.id, type: subId ? 'subtarea' : 'tarea', subId });
+  };
+
+  const saveEditedDate = async (e) => {
+    e.stopPropagation();
+    if (!editDateForm.dia || !editDateForm.mes) return;
+    
+    const nuevaFecha = `${editDateForm.dia} ${editDateForm.mes}`;
+    
+    try {
+      if (editingDate.type === 'tarea') {
+        await import("../utils/storage").then(m => m.updateTask(editingDate.id, { fin: nuevaFecha }));
+        setTareas(tareas.map(t => t.id === editingDate.id ? { ...t, fin: nuevaFecha } : t));
+        setToast({ message: "📅 Fecha de tarea reprogramada exitosamente", type: "success" });
+      } else {
+        const tarea = tareas.find(t => t.id === editingDate.id);
+        const nuevasSubtareas = tarea.subtareas.map(s => s.id === editingDate.subId ? { ...s, fecha: nuevaFecha } : s);
+        await import("../utils/storage").then(m => m.updateTask(editingDate.id, { subtareas: nuevasSubtareas }));
+        setTareas(tareas.map(t => t.id === editingDate.id ? { ...t, subtareas: nuevasSubtareas } : t));
+        setToast({ message: "📅 Fecha de subtarea reprogramada exitosamente", type: "success" });
+      }
+      setTimeout(() => setToast(null), 2500);
+      setEditingDate({ id: null, type: null, subId: null });
+    } catch (error) {
+      console.error(error);
+      setToast({ message: "❌ Error al reprogramar fecha", type: "error" });
+    }
   };
 
   // Función para categorizar las tareas
@@ -986,9 +1026,26 @@ function TareasList({ tareas, setTareas }) {
                         );
                       })()}
                       <div className="flex items-center gap-3 mt-2 flex-wrap">
-                        <span className="text-xs text-gray-400">
-                          📅 {t.inicio} → {t.fin}
-                        </span>
+                        {editingDate.id === t.id && editingDate.type === 'tarea' ? (
+                          <div className="flex items-center gap-2 bg-gray-100 p-1.5 rounded-lg border border-yellow-300" onClick={e => e.stopPropagation()}>
+                            <span className="text-xs font-bold text-gray-600">Fin:</span>
+                            <select value={editDateForm.dia} onChange={e => setEditDateForm({...editDateForm, dia: e.target.value})} className="text-xs px-1 py-0.5 rounded outline-none w-12 cursor-pointer bg-white">
+                              <option value="">Día</option>
+                              {DIAS.map(d => <option key={d} value={d}>{d}</option>)}
+                            </select>
+                            <select value={editDateForm.mes} onChange={e => setEditDateForm({...editDateForm, mes: e.target.value})} className="text-xs px-1 py-0.5 rounded outline-none w-20 cursor-pointer bg-white">
+                              <option value="">Mes</option>
+                              {MESES.map(m => <option key={m} value={m}>{m}</option>)}
+                            </select>
+                            <button type="button" onClick={saveEditedDate} className="bg-green-500 text-white text-xs px-2 py-0.5 rounded font-bold hover:bg-green-600">✓</button>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setEditingDate({id: null, type: null, subId: null}) }} className="bg-gray-400 text-white text-xs px-2 py-0.5 rounded font-bold hover:bg-gray-500">✕</button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-500 flex items-center gap-1 group bg-gray-50 px-2 py-1 rounded">
+                            📅 {t.inicio} → {t.fin}
+                            <button type="button" onClick={(e) => startEditDate(e, t)} className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 transition-opacity ml-1 bg-blue-50 rounded-full w-5 h-5 flex items-center justify-center" title="Reprogramar entrega">✏️</button>
+                          </span>
+                        )}
                         {t.curso && (
                           <span
                             className="text-xs px-3 py-1 rounded-lg text-white font-semibold"
@@ -1020,7 +1077,25 @@ function TareasList({ tareas, setTareas }) {
                             {t.subtareas.map((sub) => (
                               <div key={sub.id} className="flex items-center gap-2 bg-gray-50 rounded-lg p-2">
                                 <span className="flex-1 text-xs text-gray-700">{sub.nombre}</span>
-                                <span className="text-xs text-gray-500">📅 {sub.fecha}</span>
+                                {editingDate.id === t.id && editingDate.subId === sub.id ? (
+                                  <div className="flex items-center gap-1 scale-95" onClick={e => e.stopPropagation()}>
+                                    <select value={editDateForm.dia} onChange={e => setEditDateForm({...editDateForm, dia: e.target.value})} className="text-xs px-1 py-0.5 rounded border outline-none w-10">
+                                      <option value="">Día</option>
+                                      {DIAS.map(d => <option key={d} value={d}>{d}</option>)}
+                                    </select>
+                                    <select value={editDateForm.mes} onChange={e => setEditDateForm({...editDateForm, mes: e.target.value})} className="text-xs px-1 py-0.5 rounded border outline-none w-16">
+                                      <option value="">Mes</option>
+                                      {MESES.map(m => <option key={m} value={m}>{m}</option>)}
+                                    </select>
+                                    <button type="button" onClick={saveEditedDate} className="text-green-500 hover:text-green-600 font-bold ml-1">✓</button>
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setEditingDate({id: null, type: null, subId: null}) }} className="text-gray-500 hover:text-gray-600 font-bold ml-1">✕</button>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-gray-500 flex items-center gap-1 group">
+                                    📅 {sub.fecha}
+                                    <button type="button" onClick={(e) => startEditDate(e, t, sub.id)} className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 transition-opacity" title="Reprogramar subtarea">✏️</button>
+                                  </span>
+                                )}
                                 <span className="text-xs text-gray-500">⏱️ {sub.horas}h</span>
                                 <select
                                   value={sub.estado}
