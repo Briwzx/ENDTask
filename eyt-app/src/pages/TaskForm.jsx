@@ -273,7 +273,7 @@ export function TaskForm({ onTaskCreated }) {
           {showForm ? "−" : "+"}
         </button>
         {tareas.length === 0 && !showForm && (
-          <div className="mt-3 bg-yellow-100 text-yellow-800 px-4 py-1.5 rounded-full shadow-sm animate-bounce">
+          <div className="mt-3 bg-yellow-100 text-yellow-800 px-4 py-1.5 rounded-full shadow-sm">
             <span className="text-sm font-black tracking-widest uppercase">
               Crear Tarea
             </span>
