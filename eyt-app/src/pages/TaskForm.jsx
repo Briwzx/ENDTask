@@ -562,7 +562,7 @@ export function TaskForm({ onTaskCreated }) {
                 ))}
                 {subtareasFormulario.map((sub, idx) => (
                   <div key={idx} className="flex flex-col gap-2">
-                    <div className="grid grid-cols-5 gap-2">
+                    <div className="grid grid-cols-6 gap-2 items-center">
                       <input
                         type="text"
                         placeholder="Nombre subtarea"
@@ -714,8 +714,18 @@ function TareasList({ tareas, setTareas }) {
 
   const cambiarEstadoTarea = async (id, nuevoEstado) => {
     try {
-      await import("../utils/storage").then(m => m.updateTask(id, { estado: nuevoEstado }));
-      const nuevasTareas = tareas.map(t => t.id === id ? { ...t, estado: nuevoEstado } : t);
+      const isCompletada = nuevoEstado === "Completada";
+      const tareaOriginal = tareas.find(t => t.id === id);
+      const nuevasSubtareas = isCompletada && tareaOriginal?.subtareas
+        ? tareaOriginal.subtareas.map(s => ({ ...s, estado: "Completada" }))
+        : tareaOriginal?.subtareas || [];
+
+      await import("../utils/storage").then(m => m.updateTask(id, { 
+        estado: nuevoEstado, 
+        subtareas: nuevasSubtareas 
+      }));
+
+      const nuevasTareas = tareas.map(t => t.id === id ? { ...t, estado: nuevoEstado, subtareas: nuevasSubtareas } : t);
       setTareas(nuevasTareas);
       const emojis = { "Completada": "✅", "En progreso": "⚙️", "Cancelada": "❌", "Pendiente": "⏳" };
       setToast({ message: `${emojis[nuevoEstado]} Estado actualizado a ${nuevoEstado}`, type: "success" });
@@ -974,9 +984,33 @@ function TareasList({ tareas, setTareas }) {
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="font-bold text-gray-800 text-sm truncate">
-                          {t.titulo}
-                        </p>
+                        <div className="flex items-center gap-2 overflow-hidden max-w-[70%]">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const nuevoEstado = t.estado === "Completada" ? "Pendiente" : "Completada";
+                              cambiarEstadoTarea(t.id, nuevoEstado);
+                            }}
+                            className={`flex flex-shrink-0 w-5 h-5 rounded-full border-2 items-center justify-center transition-colors ${
+                              t.estado === "Completada" 
+                                ? "bg-green-500 border-green-500 text-white" 
+                                : "border-gray-300 hover:border-green-400 bg-white"
+                            }`}
+                            title={t.estado === "Completada" ? "Marcar como pendiente" : "Marcar como completada"}
+                          >
+                            {t.estado === "Completada" && (
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </button>
+                          <p className={`font-bold text-sm truncate transition-all ${
+                            t.estado === "Completada" ? "text-gray-400 line-through" : "text-gray-800"
+                          }`}>
+                            {t.titulo}
+                          </p>
+                        </div>
                         <div className="flex items-center gap-2">
                           <select
                             value={t.estado}
@@ -1076,7 +1110,31 @@ function TareasList({ tareas, setTareas }) {
                           <div className="flex flex-col gap-2 mb-3">
                             {t.subtareas.map((sub) => (
                               <div key={sub.id} className="flex items-center gap-2 bg-gray-50 rounded-lg p-2">
-                                <span className="flex-1 text-xs text-gray-700">{sub.nombre}</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const nuevoEstado = sub.estado === "Completada" ? "Pendiente" : "Completada";
+                                    cambiarEstadoSubtarea(t.id, sub.id, nuevoEstado);
+                                  }}
+                                  className={`flex flex-shrink-0 w-4 h-4 rounded-full border-2 items-center justify-center transition-colors ${
+                                    sub.estado === "Completada" 
+                                      ? "bg-green-500 border-green-500 text-white" 
+                                      : "border-gray-300 hover:border-green-400 bg-white"
+                                  }`}
+                                  title={sub.estado === "Completada" ? "Marcar como pendiente" : "Marcar como completada"}
+                                >
+                                  {sub.estado === "Completada" && (
+                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  )}
+                                </button>
+                                <span className={`flex-1 text-xs transition-all ${
+                                  sub.estado === "Completada" ? "text-gray-400 line-through" : "text-gray-700"
+                                }`}>
+                                  {sub.nombre}
+                                </span>
                                 {editingDate.id === t.id && editingDate.subId === sub.id ? (
                                   <div className="flex items-center gap-1 scale-95" onClick={e => e.stopPropagation()}>
                                     <select value={editDateForm.dia} onChange={e => setEditDateForm({...editDateForm, dia: e.target.value})} className="text-xs px-1 py-0.5 rounded border outline-none w-10">
@@ -1123,7 +1181,7 @@ function TareasList({ tareas, setTareas }) {
                         </>
                       )}
                       <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Agregar subtarea:</p>
-                      <div className="grid grid-cols-5 gap-2">
+                      <div className="grid grid-cols-6 gap-2 items-center">
                         <input
                           type="text"
                           placeholder="Nombre"
