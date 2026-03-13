@@ -1,57 +1,43 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Field, PasswordField } from "../components/FormFields";
 import { IconMail } from "../components/Icons";
-import { getUsers, saveSession } from "../utils/storage";
+import { authAPI } from "../utils/api";
 
-export function LoginForm({ showToast }) {
-  const navigate = useNavigate();
-  const [email, setEmail]     = useState("");
+export function LoginForm({ onSuccess, showToast }) {
+  const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
-  const [showPw, setShowPw]   = useState(false);
+  const [showPw, setShowPw]     = useState(false);
+  const [loading, setLoading]   = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const users = getUsers();
-    const user  = users.find((u) => u.email === email && u.password === password);
-
-    if (!user) {
-      showToast("Correo o contraseña incorrectos.", "error");
-      return;
+    setLoading(true);
+    try {
+      const data = await authAPI.login(email, password);
+      onSuccess(data.user);
+    } catch (error) {
+      showToast(error.message, "error");
+    } finally {
+      setLoading(false);
     }
-
-    saveSession(user);
-    navigate("/dashboard");
   };
 
   return (
     <form onSubmit={handleSubmit} className="px-10 pb-10 flex flex-col gap-4">
-      {/* Correo */}
-      <Field label="Correo electrónico" icon={<IconMail />}>
-        <input type="email" required value={email}
-          onChange={(e) => setEmail(e.target.value)}
+      <Field label="Correo electronico" icon={<IconMail />}>
+        <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
           placeholder="correo@ejemplo.com"
           className="bg-transparent flex-1 text-sm text-gray-800 outline-none placeholder-gray-400" />
       </Field>
-
-      {/* Contraseña */}
-      <PasswordField label="Contraseña" value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        placeholder="••••••••" show={showPw}
-        onToggle={() => setShowPw(!showPw)} />
-
-      {/* Olvidaste contraseña */}
+      <PasswordField label="Contrasena" value={password} onChange={(e) => setPassword(e.target.value)}
+        placeholder="..." show={showPw} onToggle={() => setShowPw(!showPw)} />
       <div className="text-right -mt-2">
-        <span className="text-xs text-yellow-600 underline cursor-pointer">
-          ¿Olvidaste tu contraseña?
-        </span>
+        <span className="text-xs text-yellow-600 underline cursor-pointer">Olvidaste tu contrasena?</span>
       </div>
-
-      {/* Botón */}
-      <button type="submit"
-        className="w-full py-3.5 rounded-xl text-sm font-bold text-white tracking-widest shadow-md active:scale-95 transition-transform"
+      <button type="submit" disabled={loading}
+        className="w-full py-3.5 rounded-xl text-sm font-bold text-white tracking-widest shadow-md active:scale-95 transition-transform disabled:opacity-60"
         style={{ background: "linear-gradient(135deg, #c8a84b, #a8882a)" }}>
-        INICIAR SESIÓN
+        {loading ? "INICIANDO..." : "INICIAR SESION"}
       </button>
     </form>
   );
