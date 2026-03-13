@@ -164,6 +164,51 @@ export function TaskForm({ onTaskCreated }) {
     }
     if (!validateDates()) return;
 
+    const todasLasSubtareasCandidatas = [
+      ...subtareas,
+      ...subtareasFormulario
+        .filter(s => s.nombre.trim() && s.dia && s.mes && s.horas)
+        .map((s, i) => ({
+          id: Date.now() + i,
+          nombre: s.nombre.trim(),
+          fecha: `${s.dia} ${s.mes}`,
+          horas: parseInt(s.horas),
+          estado: "Pendiente"
+        }))
+    ];
+
+    // Validación de sobrecarga (máximo 8 horas por día)
+    const horasPorDia = {};
+    
+    // Sumar horas de tareas existentes
+    tareas.forEach(t => {
+      if (t.subtareas && !t.completada && t.estado !== "Completada") {
+        t.subtareas.forEach(sub => {
+          if (sub.estado !== "Completada" && sub.fecha) {
+            horasPorDia[sub.fecha] = (horasPorDia[sub.fecha] || 0) + (sub.horas || 0);
+          }
+        });
+      }
+    });
+
+    // Sumar horas de la nueva tarea
+    let fechaSobrecargada = null;
+    for (const sub of todasLasSubtareasCandidatas) {
+      if (sub.fecha) {
+        horasPorDia[sub.fecha] = (horasPorDia[sub.fecha] || 0) + (sub.horas || 0);
+        if (horasPorDia[sub.fecha] > 8) {
+          fechaSobrecargada = sub.fecha;
+          break;
+        }
+      }
+    }
+
+    if (fechaSobrecargada) {
+      setToast({ message: `⚠️ Sobrecarga detectada: El día ${fechaSobrecargada} supera el límite de 8 horas de planificación.`, type: "error" });
+      setTimeout(() => setToast(null), 5000);
+      return;
+    }
+
     const tarea = {
       titulo: form.nombre,
       descripcion: form.descripcion,
@@ -178,18 +223,7 @@ export function TaskForm({ onTaskCreated }) {
       etiquetas,
       vence: form.prioridad === "Crítica" || form.prioridad === "Alta",
       completada: false,
-      subtareas: [
-        ...subtareas,
-        ...subtareasFormulario
-          .filter(s => s.nombre.trim() && s.dia && s.mes && s.horas)
-          .map((s, i) => ({
-            id: Date.now() + i,
-            nombre: s.nombre.trim(),
-            fecha: `${s.dia} ${s.mes}`,
-            horas: parseInt(s.horas),
-            estado: "Pendiente"
-          }))
-      ],
+      subtareas: todasLasSubtareasCandidatas,
     };
 
     try {
@@ -774,12 +808,33 @@ function TareasList({ tareas, setTareas }) {
   const agregarSubtareaExistente = async (tareaId) => {
     const nuevaSub = nuevasSubtareasPorTarea[tareaId];
     if (nuevaSub && nuevaSub.nombre.trim() && nuevaSub.dia && nuevaSub.mes && nuevaSub.horas) {
+      const fecha = `${nuevaSub.dia} ${nuevaSub.mes}`;
+      const horasNuevas = parseInt(nuevaSub.horas) || 0;
+
+      // Validación de sobrecarga
+      let totalHorasDia = 0;
+      tareas.forEach(t => {
+        if (t.subtareas && t.estado !== "Completada") {
+          t.subtareas.forEach(sub => {
+            if (sub.estado !== "Completada" && sub.fecha === fecha) {
+              totalHorasDia += (sub.horas || 0);
+            }
+          });
+        }
+      });
+
+      if (totalHorasDia + horasNuevas > 8) {
+        setToast({ message: `⚠️ Sobrecarga detectada: El día ${fecha} ya tiene ${totalHorasDia}h. No se pueden agregar ${horasNuevas}h más.`, type: "error" });
+        setTimeout(() => setToast(null), 5000);
+        return;
+      }
+
       try {
         const tarea = tareas.find(t => t.id === tareaId);
         if (!tarea) return;
 
         const subtareasActuales = tarea.subtareas || [];
-        const nuevasSubtareas = [...subtareasActuales, { id: Date.now(), nombre: nuevaSub.nombre.trim(), fecha: `${nuevaSub.dia} ${nuevaSub.mes}`, horas: parseInt(nuevaSub.horas), estado: "Pendiente" }];
+        const nuevasSubtareas = [...subtareasActuales, { id: Date.now(), nombre: nuevaSub.nombre.trim(), fecha, horas: horasNuevas, estado: "Pendiente" }];
 
         await import("../utils/storage").then(m => m.updateTask(tareaId, { subtareas: nuevasSubtareas }));
 
@@ -848,6 +903,28 @@ function TareasList({ tareas, setTareas }) {
         setToast({ message: "📅 Fecha de tarea reprogramada exitosamente", type: "success" });
       } else {
         const tarea = tareas.find(t => t.id === editingDate.id);
+        const subOriginal = tarea.subtareas.find(s => s.id === editingDate.subId);
+        
+        // Validación de sobrecarga para cambio de fecha de subtarea
+        let totalHorasDia = 0;
+        tareas.forEach(t => {
+          if (t.subtareas && t.estado !== "Completada") {
+            t.subtareas.forEach(sub => {
+              // No sumar la propia subtarea siendo editada si tenía la misma fecha
+              if (sub.id === editingDate.subId) return;
+              if (sub.estado !== "Completada" && sub.fecha === nuevaFecha) {
+                totalHorasDia += (sub.horas || 0);
+              }
+            });
+          }
+        });
+
+        if (totalHorasDia + (subOriginal?.horas || 0) > 8) {
+          setToast({ message: `⚠️ Sobrecarga: Mover a ${nuevaFecha} excedería las 8h diarias (actual: ${totalHorasDia}h)`, type: "error" });
+          setTimeout(() => setToast(null), 5000);
+          return;
+        }
+
         const nuevasSubtareas = tarea.subtareas.map(s => s.id === editingDate.subId ? { ...s, fecha: nuevaFecha } : s);
         await import("../utils/storage").then(m => m.updateTask(editingDate.id, { subtareas: nuevasSubtareas }));
         setTareas(tareas.map(t => t.id === editingDate.id ? { ...t, subtareas: nuevasSubtareas } : t));
