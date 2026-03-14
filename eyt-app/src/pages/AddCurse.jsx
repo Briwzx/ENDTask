@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { getCourses, addCourse, deleteCourse } from "../utils/storage";
+import { ConfirmModal } from "../components/ConfirmModal";
 
 const COLORES_CURSOS = [
   "#e05252",
@@ -16,6 +17,8 @@ export function AddCurse() {
   const [nombreCurso, setNombreCurso] = useState("");
   const [colorIndex, setColorIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [cursoToDelete, setCursoToDelete] = useState(null);
 
   // Cargar cursos desde Supabase
   useEffect(() => {
@@ -51,22 +54,40 @@ export function AddCurse() {
       setShowForm(false);
     } catch (error) {
       console.error("Error al agregar curso:", error);
-      alert("No se pudo agregar el curso.");
+      alert("Lo sentimos, tuvimos un problema al guardar tu curso. Por favor, intenta de nuevo.");
     }
   };
 
-  const eliminarCurso = async (id) => {
+  const confirmarEliminar = (id) => {
+    setCursoToDelete(id);
+    setConfirmOpen(true);
+  };
+
+  const ejecutarEliminar = async () => {
+    if (!cursoToDelete) return;
     try {
-      await deleteCourse(id);
-      setCursos(cursos.filter((c) => c.id !== id));
+      await deleteCourse(cursoToDelete);
+      setCursos(cursos.filter((c) => c.id !== cursoToDelete));
+      setConfirmOpen(false);
+      setCursoToDelete(null);
     } catch (error) {
       console.error("Error al eliminar curso:", error);
-      alert("No se pudo eliminar el curso.");
+      alert("Lo sentimos, no pudimos eliminar el curso. Verifica tu conexión a internet.");
     }
   };
 
   return (
     <div className="p-8">
+      <ConfirmModal 
+        isOpen={confirmOpen}
+        title="Eliminar Curso"
+        message="¿Estás seguro de que deseas eliminar este curso? Esta acción no se puede deshacer."
+        onConfirm={ejecutarEliminar}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setCursoToDelete(null);
+        }}
+      />
       {/* Botón para agregar curso */}
       <div className="flex justify-center mb-6">
         <button
@@ -186,7 +207,7 @@ export function AddCurse() {
                     style={{ background: curso.color }}
                   />
                   <button
-                    onClick={() => eliminarCurso(curso.id)}
+                    onClick={() => confirmarEliminar(curso.id)}
                     className="text-gray-300 hover:text-red-500 transition-colors text-lg font-bold"
                   >
                     ✕

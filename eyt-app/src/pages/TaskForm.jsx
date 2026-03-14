@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Toast } from "../components/Toast";
 import { getCourses, getTasks, addTask } from "../utils/storage";
+import { ConfirmModal } from "../components/ConfirmModal";
 
 const ESTADOS = ["Pendiente", "En progreso", "Completada", "Cancelada"];
 const PRIORIDADES = ["Baja", "Media", "Alta", "Crítica"];
@@ -57,11 +58,13 @@ function SelectField({ label, value, onChange, options }) {
   );
 }
 
-export function TaskForm({ onTaskCreated }) {
+export function TaskForm({ user, onTaskCreated }) {
   const [showForm, setShowForm] = useState(false);
   const [etiquetas, setEtiquetas] = useState([]);
   const [nuevaEtiqueta, setNuevaEtiqueta] = useState("");
   const [error, setError] = useState("");
+  const [conflicto, setConflicto] = useState(null);
+  const [pendingTask, setPendingTask] = useState(null);
   const [cursos, setCursos] = useState([]);
   const [toast, setToast] = useState(null);
   const [tareas, setTareas] = useState([]);
@@ -113,7 +116,7 @@ export function TaskForm({ onTaskCreated }) {
     const endDay = parseInt(finDia);
 
     if (endMonth < startMonth || (endMonth === startMonth && endDay < startDay)) {
-      setError("La fecha de entrega no puede ser anterior a la fecha de inicio.");
+      setError("Por favor, asegúrate de que la fecha de entrega sea posterior a la fecha de inicio.");
       return false;
     }
     setError("");
@@ -158,12 +161,13 @@ export function TaskForm({ onTaskCreated }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.nombre.trim()) {
-      setToast({ message: "❌ El nombre es requerido.", type: "error" });
+      setToast({ message: "❌ Por favor, ingresa un nombre para la tarea.", type: "error" });
       setTimeout(() => setToast(null), 3000);
       return;
     }
     if (!validateDates()) return;
 
+    const limitHours = user?.settings?.limite_diario || 6;
     const todasLasSubtareasCandidatas = [
       ...subtareas,
       ...subtareasFormulario
@@ -177,39 +181,7 @@ export function TaskForm({ onTaskCreated }) {
         }))
     ];
 
-    // Validación de sobrecarga (máximo 8 horas por día)
-    const horasPorDia = {};
-    
-    // Sumar horas de tareas existentes
-    tareas.forEach(t => {
-      if (t.subtareas && !t.completada && t.estado !== "Completada") {
-        t.subtareas.forEach(sub => {
-          if (sub.estado !== "Completada" && sub.fecha) {
-            horasPorDia[sub.fecha] = (horasPorDia[sub.fecha] || 0) + (sub.horas || 0);
-          }
-        });
-      }
-    });
-
-    // Sumar horas de la nueva tarea
-    let fechaSobrecargada = null;
-    for (const sub of todasLasSubtareasCandidatas) {
-      if (sub.fecha) {
-        horasPorDia[sub.fecha] = (horasPorDia[sub.fecha] || 0) + (sub.horas || 0);
-        if (horasPorDia[sub.fecha] > 8) {
-          fechaSobrecargada = sub.fecha;
-          break;
-        }
-      }
-    }
-
-    if (fechaSobrecargada) {
-      setToast({ message: `⚠️ Sobrecarga detectada: El día ${fechaSobrecargada} supera el límite de 8 horas de planificación.`, type: "error" });
-      setTimeout(() => setToast(null), 5000);
-      return;
-    }
-
-    const tarea = {
+    const tareaTemplate = {
       titulo: form.nombre,
       descripcion: form.descripcion,
       estado: form.estado || "Pendiente",
@@ -226,6 +198,58 @@ export function TaskForm({ onTaskCreated }) {
       subtareas: todasLasSubtareasCandidatas,
     };
 
+    checkAndSaveTask(tareaTemplate, limitHours);
+  };
+
+  const checkAndSaveTask = async (tarea, limitHours) => {
+    // Validación de sobrecarga
+    const horasPorDia = {};
+    
+    // Sumar horas de tareas existentes
+    tareas.forEach(t => {
+      if (t.subtareas && !t.completada && t.estado !== "Completada") {
+        t.subtareas.forEach(sub => {
+          if (sub.estado !== "Completada" && sub.fecha) {
+            horasPorDia[sub.fecha] = (horasPorDia[sub.fecha] || 0) + (sub.horas || 0);
+          }
+        });
+      }
+    });
+
+    // Sumar horas de la nueva tarea y buscar conflictos
+    let conflictoEncontrado = null;
+    
+    // Check pending subtasks backwards or mapping to keep reference
+    for (let c = 0; c < tarea.subtareas.length; c++) {
+      const sub = tarea.subtareas[c];
+      if (sub.fecha && sub.horas > 0) {
+        const currentDayTotal = (horasPorDia[sub.fecha] || 0);
+        const newTotal = currentDayTotal + sub.horas;
+        
+        if (newTotal > limitHours) {
+          conflictoEncontrado = {
+            subtarea: sub,
+            index: c,
+            fecha: sub.fecha,
+            exceso: newTotal - limitHours,
+            actual: currentDayTotal,
+            limite: limitHours,
+            horasIntentadas: sub.horas
+          };
+          break; // Stop at first conflict
+        } else {
+          horasPorDia[sub.fecha] = newTotal;
+        }
+      }
+    }
+
+    if (conflictoEncontrado) {
+      setConflicto(conflictoEncontrado);
+      setPendingTask(tarea);
+      return; 
+    }
+
+    // No conflictos, guardar
     try {
       const data = await addTask(tarea);
       const nuevasTareas = [...tareas, data];
@@ -233,7 +257,7 @@ export function TaskForm({ onTaskCreated }) {
 
       if (onTaskCreated) onTaskCreated(data);
 
-      setToast({ message: "✨ ¡Tarea creada exitosamente!", type: "success" });
+      setToast({ message: "✨ ¡Excelente! La tarea se ha guardado correctamente.", type: "success" });
       setTimeout(() => setToast(null), 3000);
 
       setForm({
@@ -253,10 +277,32 @@ export function TaskForm({ onTaskCreated }) {
       setNuevaEtiqueta("");
       setError("");
       setShowForm(false);
+      setConflicto(null);
+      setPendingTask(null);
     } catch (error) {
       console.error("Error al crear la tarea:", error);
-      setToast({ message: "❌ Error al crear la tarea.", type: "error" });
+      setToast({ message: "❌ Lo sentimos, hubo un problema al guardar la tarea. Por favor, intenta de nuevo.", type: "error" });
     }
+  };
+
+  const resolverConflicto = (estrategia, nuevoValor) => {
+    if (!pendingTask || !conflicto) return;
+    
+    const nuevaTarea = { ...pendingTask };
+    const nuevasSubtareas = [...nuevaTarea.subtareas];
+    const subIdx = conflicto.index;
+
+    if (estrategia === "mover") {
+      nuevasSubtareas[subIdx] = { ...nuevasSubtareas[subIdx], fecha: nuevoValor };
+    } else if (estrategia === "reducir") {
+      nuevasSubtareas[subIdx] = { ...nuevasSubtareas[subIdx], horas: Number(nuevoValor) };
+    }
+
+    nuevaTarea.subtareas = nuevasSubtareas;
+    setConflicto(null);
+    
+    const limitHours = user?.settings?.limite_diario || 6;
+    checkAndSaveTask(nuevaTarea, limitHours);
   };
 
   return (
@@ -707,6 +753,88 @@ export function TaskForm({ onTaskCreated }) {
         </div>
       )}
 
+      {/* Modal de Conflicto */}
+      {conflicto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900 bg-opacity-40 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-lg w-full border border-red-100 relative">
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-3xl mb-4 shadow-sm border border-red-100">
+                ⚠️
+              </div>
+              <h2 className="text-xl font-black text-gray-800 tracking-tight">Sobrecarga Detectada</h2>
+              <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+                El día <span className="font-bold text-gray-700">{conflicto.fecha}</span> supera tu límite diario de <span className="font-bold text-red-500">{conflicto.limite}h</span>.
+                Actualmente tienes <span className="font-bold">{conflicto.actual}h</span> planificadas e intentas sumar <span className="font-bold">{conflicto.horasIntentadas}h</span> con <em>"{conflicto.subtarea.nombre}"</em>.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest text-center">Estrategias de Solución</p>
+              
+              {/* Opción 1: Mover */}
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 hover:border-yellow-300 transition-colors">
+                <p className="text-sm font-bold text-gray-700 mb-2">Opción A: Mover a otro día</p>
+                <div className="flex gap-2">
+                  <select id="modal-move-day" className="flex-1 bg-white rounded-xl px-3 py-2 text-sm text-gray-700 outline-none border border-gray-200">
+                    <option value="">Nuevo Día</option>
+                    {DIAS.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <select id="modal-move-month" className="flex-1 bg-white rounded-xl px-3 py-2 text-sm text-gray-700 outline-none border border-gray-200">
+                    <option value="">Mes</option>
+                    {MESES.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                  <button 
+                    onClick={() => {
+                      const d = document.getElementById("modal-move-day").value;
+                      const m = document.getElementById("modal-move-month").value;
+                      if (d && m) resolverConflicto("mover", `${d} ${m}`);
+                      else setToast({ message: "⚠️ Por favor, selecciona un día y un mes para reubicar la tarea.", type: "error" });
+                    }}
+                    className="px-4 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-colors"
+                  >
+                    Aplicar
+                  </button>
+                </div>
+              </div>
+
+              {/* Opción 2: Reducir */}
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 hover:border-yellow-300 transition-colors">
+                <p className="text-sm font-bold text-gray-700 mb-2">Opción B: Reducir horas estimadas</p>
+                <div className="flex gap-2">
+                  <input 
+                    id="modal-reduce-hours"
+                    type="number" 
+                    min="1" 
+                    max={conflicto.limite - conflicto.actual > 0 ? conflicto.limite - conflicto.actual : 1}
+                    defaultValue={conflicto.limite - conflicto.actual > 0 ? conflicto.limite - conflicto.actual : 1}
+                    className="flex-1 bg-white rounded-xl px-3 py-2 text-sm text-gray-700 outline-none border border-gray-200"
+                  />
+                  <button 
+                    onClick={() => {
+                      const h = document.getElementById("modal-reduce-hours").value;
+                      if (h) resolverConflicto("reducir", h);
+                    }}
+                    className="px-4 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-colors"
+                  >
+                    Aplicar
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                setConflicto(null);
+                setPendingTask(null);
+              }}
+              className="mt-6 w-full py-3 rounded-xl text-sm font-bold text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            >
+              Cancelar Creación
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Lista de tareas creadas */}
       <TareasList tareas={tareas} setTareas={setTareas} />
     </div>
@@ -721,6 +849,7 @@ function TareasList({ tareas, setTareas }) {
   const [cursos, setCursos] = useState([]);
   const [editingDate, setEditingDate] = useState({ id: null, type: null, subId: null });
   const [editDateForm, setEditDateForm] = useState({ dia: "", mes: "" });
+  const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, type: null, tareaId: null, subtareaId: null });
 
   useEffect(() => {
     // We can also fetch courses here or receive them as props, but since they may change we re-fetch them.
@@ -762,11 +891,11 @@ function TareasList({ tareas, setTareas }) {
       const nuevasTareas = tareas.map(t => t.id === id ? { ...t, estado: nuevoEstado, subtareas: nuevasSubtareas } : t);
       setTareas(nuevasTareas);
       const emojis = { "Completada": "✅", "En progreso": "⚙️", "Cancelada": "❌", "Pendiente": "⏳" };
-      setToast({ message: `${emojis[nuevoEstado]} Estado actualizado a ${nuevoEstado}`, type: "success" });
+      setToast({ message: `${emojis[nuevoEstado]} Estado actualizado a: ${nuevoEstado}`, type: "success" });
       setTimeout(() => setToast(null), 2500);
     } catch (error) {
       console.error(error);
-      setToast({ message: "❌ Error al actualizar tarea", type: "error" });
+      setToast({ message: "❌ No pudimos actualizar la tarea. Por favor, verifica tu conexión.", type: "error" });
     }
   };
 
@@ -788,7 +917,11 @@ function TareasList({ tareas, setTareas }) {
     }
   };
 
-  const eliminarSubtareaExistente = async (tareaId, subtareaId) => {
+  const confirmarEliminarSubtarea = (tareaId, subtareaId) => {
+    setConfirmDelete({ isOpen: true, type: 'subtarea', tareaId, subtareaId });
+  };
+
+  const ejecutarEliminarSubtarea = async (tareaId, subtareaId) => {
     try {
       const tarea = tareas.find(t => t.id === tareaId);
       if (!tarea) return;
@@ -849,7 +982,11 @@ function TareasList({ tareas, setTareas }) {
     }
   };
 
-  const eliminarTarea = async (id) => {
+  const confirmarEliminarTarea = (id) => {
+    setConfirmDelete({ isOpen: true, type: 'tarea', tareaId: id, subtareaId: null });
+  };
+
+  const ejecutarEliminarTarea = async (id) => {
     try {
       await import("../utils/storage").then(m => m.deleteTask(id));
       const nuevasTareas = tareas.filter(t => t.id !== id);
@@ -859,6 +996,15 @@ function TareasList({ tareas, setTareas }) {
     } catch (error) {
       console.error(error);
     }
+  };
+
+  const handleConfirmDelete = () => {
+    if (confirmDelete.type === 'tarea') {
+      ejecutarEliminarTarea(confirmDelete.tareaId);
+    } else if (confirmDelete.type === 'subtarea') {
+      ejecutarEliminarSubtarea(confirmDelete.tareaId, confirmDelete.subtareaId);
+    }
+    setConfirmDelete({ isOpen: false, type: null, tareaId: null, subtareaId: null });
   };
 
   const actualizarNuevaSubtarea = (tareaId, field, value) => {
@@ -1027,6 +1173,15 @@ function TareasList({ tareas, setTareas }) {
 
   return (
     <div className="mt-6 max-w-2xl mx-auto flex flex-col gap-6">
+      <ConfirmModal 
+        isOpen={confirmDelete.isOpen}
+        title={confirmDelete.type === 'tarea' ? 'Eliminar Tarea' : 'Eliminar Subtarea'}
+        message={confirmDelete.type === 'tarea' 
+          ? "¿Estás seguro de que deseas eliminar esta tarea completa? Todas sus subtareas también se borrarán."
+          : "¿Estás seguro de que deseas eliminar esta subtarea? Esta acción no se puede deshacer."}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setConfirmDelete({ isOpen: false, type: null, tareaId: null, subtareaId: null })}
+      />
       <Toast message={toast?.message} type={toast?.type} />
 
       {/* Información de orden */}
@@ -1102,7 +1257,7 @@ function TareasList({ tareas, setTareas }) {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              eliminarTarea(t.id);
+                              confirmarEliminarTarea(t.id);
                             }}
                             className="flex items-center justify-center w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white text-xs font-bold transition-colors"
                             title="Eliminar tarea"
@@ -1245,7 +1400,7 @@ function TareasList({ tareas, setTareas }) {
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    eliminarSubtareaExistente(t.id, sub.id);
+                                    confirmarEliminarSubtarea(t.id, sub.id);
                                   }}
                                   className="text-red-500 hover:text-red-700 font-bold text-sm"
                                   title="Eliminar subtarea"

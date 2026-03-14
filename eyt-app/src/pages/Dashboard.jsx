@@ -5,8 +5,9 @@ import { logoutUser, getCurrentUserProfile, getTasks, getCourses } from "../util
 import { TaskForm } from "./TaskForm";
 import { Rendimiento } from "./Rendimiento";
 import { AddCurse } from "./AddCurse";
+import { Configuracion } from "./Configuracion";
 
-const NAV_ITEMS = ["TAREAS", "CURSOS", "RENDIMIENTO", "PERFIL"];
+const NAV_ITEMS = ["TAREAS", "CURSOS", "RENDIMIENTO", "PERFIL", "CONFIGURACIÓN"];
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -136,6 +137,7 @@ export function Dashboard() {
             {activeNav === "CURSOS" && "CURSOS"}
             {activeNav === "RENDIMIENTO" && "DASHBOARD"}
             {activeNav === "PERFIL" && "PERFIL"}
+            {activeNav === "CONFIGURACIÓN" && "CONFIGURACIÓN"}
           </h2>
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-gray-500 tracking-wide uppercase">
@@ -152,7 +154,7 @@ export function Dashboard() {
 
         {/* ── TAREAS ── */}
         {activeNav === "TAREAS" && (
-          <TaskForm onTaskCreated={handleTaskCreated} />
+          <TaskForm user={user} onTaskCreated={handleTaskCreated} />
         )}
 
         {/* ── CURSOS ── */}
@@ -208,6 +210,11 @@ export function Dashboard() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ── CONFIGURACIÓN ── */}
+        {activeNav === "CONFIGURACIÓN" && (
+          <Configuracion user={user} onUpdateUser={setUser} />
         )}
       </main>
     </div>

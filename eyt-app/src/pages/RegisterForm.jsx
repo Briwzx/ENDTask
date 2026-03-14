@@ -30,8 +30,8 @@ export function RegisterForm({ showToast }) {
     if (!form.telefono.trim())     errs.telefono = "El teléfono es requerido";
     if (!form.email.trim())        errs.email    = "El correo es requerido";
     if (!form.anio)                errs.anio     = "Selecciona un año";
-    if (form.password.length < 8)  errs.password = "Mínimo 8 caracteres";
-    if (form.password !== form.confirm) errs.confirm = "Las contraseñas no coinciden";
+    if (form.password.length < 8)  errs.password = "La contraseña debe tener al menos 8 caracteres";
+    if (form.password !== form.confirm) errs.confirm = "Asegúrate de que las contraseñas coincidan";
     if (!accepted)                 errs.terms    = "Debes aceptar los términos";
 
     if (Object.keys(errs).length) {
@@ -51,14 +51,13 @@ export function RegisterForm({ showToast }) {
       };
 
       await registerUser(userData);
-      showToast(`¡Registro exitoso! Bienvenido/a, ${form.nombre} 🎉`, "success");
+      showToast(`¡Cuenta creada exitosamente! Bienvenido/a a End Your Tasks, ${form.nombre} 🎉`, "success");
       setTimeout(() => {
         navigate("/dashboard");
       }, 1500);
     } catch (error) {
       console.error('Registration error:', error);
-      // show specific message if available
-      const msg = error.message || (error.error_description || "Error al registrar usuario. Inténtalo de nuevo.");
+      const msg = "Tuvimos un problema al crear tu cuenta. Por favor, verifica tus datos e inténtalo de nuevo.";
       showToast(msg, "error");
     }
   };

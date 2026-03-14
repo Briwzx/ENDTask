@@ -14,11 +14,14 @@ export function LoginForm({ showToast }) {
     e.preventDefault();
 
     try {
-      await loginUser(email, password);
-      navigate("/dashboard");
+      const user = await loginUser(email, password);
+      showToast(`¡Bienvenido de vuelta, ${user.nombre || "estudiante"}! 👋`, "success");
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 1000);
     } catch (error) {
       console.error('Login error:', error);
-      showToast("Correo o contraseña incorrectos.", "error");
+      showToast("El correo electrónico o la contraseña no son correctos. Por favor, revisa tus datos e intenta de nuevo.", "error");
     }
   };
 
