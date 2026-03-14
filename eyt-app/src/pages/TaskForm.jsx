@@ -168,7 +168,7 @@ export function TaskForm({ user, onTaskCreated }) {
     }
     if (!validateDates()) return;
 
-    const limitHours = user?.settings?.limite_diario || 6;
+    const limitHours = Number(user?.settings?.limite_diario || 6);
     const todasLasSubtareasCandidatas = [
       ...subtareas,
       ...subtareasFormulario
@@ -205,13 +205,13 @@ export function TaskForm({ user, onTaskCreated }) {
   const checkAndSaveTask = async (tarea, limitHours) => {
     // Validación de sobrecarga
     const horasPorDia = {};
-    
+
     // Sumar horas de tareas existentes
     tareas.forEach(t => {
       if (t.subtareas && !t.completada && t.estado !== "Completada") {
         t.subtareas.forEach(sub => {
           if (sub.estado !== "Completada" && sub.fecha) {
-            horasPorDia[sub.fecha] = (horasPorDia[sub.fecha] || 0) + (sub.horas || 0);
+            horasPorDia[sub.fecha] = Number(horasPorDia[sub.fecha] || 0) + Number(sub.horas || 0);
           }
         });
       }
@@ -219,15 +219,15 @@ export function TaskForm({ user, onTaskCreated }) {
 
     // Sumar horas de la nueva tarea y buscar conflictos
     let conflictoEncontrado = null;
-    
+
     // Check pending subtasks backwards or mapping to keep reference
     for (let c = 0; c < tarea.subtareas.length; c++) {
       const sub = tarea.subtareas[c];
       if (sub.fecha && sub.horas > 0) {
-        const currentDayTotal = (horasPorDia[sub.fecha] || 0);
-        const newTotal = currentDayTotal + sub.horas;
-        
-        if (newTotal > limitHours) {
+        const currentDayTotal = Number(horasPorDia[sub.fecha] || 0);
+        const newTotal = currentDayTotal + Number(sub.horas || 0);
+
+        if (newTotal > Number(limitHours)) {
           conflictoEncontrado = {
             subtarea: sub,
             index: c,
@@ -247,7 +247,7 @@ export function TaskForm({ user, onTaskCreated }) {
     if (conflictoEncontrado) {
       setConflicto(conflictoEncontrado);
       setPendingTask(tarea);
-      return; 
+      return;
     }
 
     // No conflictos, guardar
@@ -288,7 +288,7 @@ export function TaskForm({ user, onTaskCreated }) {
 
   const resolverConflicto = (estrategia, nuevoValor) => {
     if (!pendingTask || !conflicto) return;
-    
+
     const nuevaTarea = { ...pendingTask };
     const nuevasSubtareas = [...nuevaTarea.subtareas];
     const subIdx = conflicto.index;
@@ -301,7 +301,7 @@ export function TaskForm({ user, onTaskCreated }) {
 
     nuevaTarea.subtareas = nuevasSubtareas;
     setConflicto(null);
-    
+
     const limitHours = user?.settings?.limite_diario || 6;
     checkAndSaveTask(nuevaTarea, limitHours);
   };
@@ -754,7 +754,7 @@ export function TaskForm({ user, onTaskCreated }) {
         </div>
       )}
 
-      <ConflictModal 
+      <ConflictModal
         conflicto={conflicto}
         onResolve={resolverConflicto}
         onCancel={() => {
@@ -781,7 +781,7 @@ function TareasList({ tareas, setTareas, user }) {
   const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, type: null, tareaId: null, subtareaId: null });
   const [conflicto, setConflicto] = useState(null);
   const [pendingSubtaskData, setPendingSubtaskData] = useState(null);
-  const limitHours = user?.settings?.limite_diario || 6;
+  const limitHours = Number(user?.settings?.limite_diario || 6);
 
   useEffect(() => {
     // We can also fetch courses here or receive them as props, but since they may change we re-fetch them.
@@ -815,9 +815,9 @@ function TareasList({ tareas, setTareas, user }) {
         ? tareaOriginal.subtareas.map(s => ({ ...s, estado: "Completada" }))
         : tareaOriginal?.subtareas || [];
 
-      await import("../utils/storage").then(m => m.updateTask(id, { 
-        estado: nuevoEstado, 
-        subtareas: nuevasSubtareas 
+      await import("../utils/storage").then(m => m.updateTask(id, {
+        estado: nuevoEstado,
+        subtareas: nuevasSubtareas
       }));
 
       const nuevasTareas = tareas.map(t => t.id === id ? { ...t, estado: nuevoEstado, subtareas: nuevasSubtareas } : t);
@@ -874,26 +874,40 @@ function TareasList({ tareas, setTareas, user }) {
     const fecha = `${nuevaSub.dia} ${nuevaSub.mes}`;
     const horasNuevas = parseInt(nuevaSub.horas) || 0;
 
+    // Forzar re-obtención para evitar estado local desactualizado
+    let latestTasks = tareas;
+    let latestLimit = limitHours;
+    try {
+      const { getTasks, getCurrentUserProfile } = await import("../utils/storage");
+      const [tasks, profile] = await Promise.all([getTasks(), getCurrentUserProfile()]);
+      latestTasks = tasks;
+      latestLimit = Number(profile?.settings?.limite_diario || 6);
+    } catch (e) { console.error(e); }
+
+    const limitNum = latestLimit;
+
     // Validación de sobrecarga
     let totalHorasDia = 0;
-    tareas.forEach(t => {
+    latestTasks.forEach(t => {
       if (t.subtareas && t.estado !== "Completada") {
         t.subtareas.forEach(sub => {
           if (sub.estado !== "Completada" && sub.fecha === fecha) {
-            totalHorasDia += (sub.horas || 0);
+            totalHorasDia += Number(sub.horas || 0);
           }
         });
       }
     });
 
-    if (totalHorasDia + horasNuevas > limitHours) {
+    const totalFinal = Number(totalHorasDia) + Number(horasNuevas);
+
+    if (totalFinal > limitNum) {
       setConflicto({
         subtarea: { nombre: nuevaSub.nombre.trim(), dia: nuevaSub.dia, mes: nuevaSub.mes, horas: horasNuevas, id: Date.now() },
         index: null,
         fecha: fecha,
-        exceso: totalHorasDia + horasNuevas - limitHours,
+        exceso: totalFinal - limitNum,
         actual: totalHorasDia,
-        limite: limitHours,
+        limite: limitNum,
         horasIntentadas: horasNuevas
       });
       setPendingSubtaskData({ type: 'add', tareaId, nuevaSub });
@@ -982,7 +996,7 @@ function TareasList({ tareas, setTareas, user }) {
 
   const checkAndSaveEditedDate = async (editingDateObj, editDateFormObj, overridedSub = null) => {
     const nuevaFecha = `${editDateFormObj.dia} ${editDateFormObj.mes}`;
-    
+
     try {
       if (editingDateObj.type === 'tarea') {
         await import("../utils/storage").then(m => m.updateTask(editingDateObj.id, { fin: nuevaFecha }));
@@ -991,7 +1005,7 @@ function TareasList({ tareas, setTareas, user }) {
       } else {
         const tarea = tareas.find(t => t.id === editingDateObj.id);
         const subOriginal = overridedSub || tarea.subtareas.find(s => s.id === editingDateObj.subId);
-        
+
         // Validación de sobrecarga para cambio de fecha de subtarea
         let totalHorasDia = 0;
         tareas.forEach(t => {
@@ -1000,7 +1014,7 @@ function TareasList({ tareas, setTareas, user }) {
               // No sumar la propia subtarea siendo editada
               if (sub.id === editingDateObj.subId) return;
               if (sub.estado !== "Completada" && sub.fecha === nuevaFecha) {
-                totalHorasDia += (sub.horas || 0);
+                totalHorasDia += Number(sub.horas || 0);
               }
             });
           }
@@ -1042,7 +1056,7 @@ function TareasList({ tareas, setTareas, user }) {
 
   const resolverConflictoList = (estrategia, nuevoValor) => {
     if (!conflicto || !pendingSubtaskData) return;
-    
+
     setConflicto(null);
 
     if (pendingSubtaskData.type === 'add') {
@@ -1060,7 +1074,7 @@ function TareasList({ tareas, setTareas, user }) {
       const { editingDateObj, editDateFormObj, subOriginal } = pendingSubtaskData;
       let resEditDateForm = { ...editDateFormObj };
       let updatedSubOriginal = { ...subOriginal };
-      
+
       if (estrategia === "mover") {
         const [d, m] = nuevoValor.split(" ");
         resEditDateForm.dia = d;
@@ -1108,9 +1122,9 @@ function TareasList({ tareas, setTareas, user }) {
         }
       }
       // Si empate, ordenar por horas estimadas
-      const horasA = a.subtareas?.reduce((sum, s) => sum + (s.horas || 0), 0) || 0;
-      const horasB = b.subtareas?.reduce((sum, s) => sum + (s.horas || 0), 0) || 0;
-      return horasB - horasA;
+      const horasA = a.subtareas?.reduce((sum, s) => Number(sum) + Number(s.horas || 0), 0) || 0;
+      const horasB = b.subtareas?.reduce((sum, s) => Number(sum) + Number(s.horas || 0), 0) || 0;
+      return Number(horasB) - Number(horasA);
     });
 
     return {
@@ -1162,7 +1176,7 @@ function TareasList({ tareas, setTareas, user }) {
 
   return (
     <div className="mt-6 max-w-2xl mx-auto flex flex-col gap-6">
-      <ConflictModal 
+      <ConflictModal
         conflicto={conflicto}
         onResolve={resolverConflictoList}
         onCancel={() => {
@@ -1171,10 +1185,10 @@ function TareasList({ tareas, setTareas, user }) {
         }}
         setToast={setToast}
       />
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={confirmDelete.isOpen}
         title={confirmDelete.type === 'tarea' ? 'Eliminar Tarea' : 'Eliminar Subtarea'}
-        message={confirmDelete.type === 'tarea' 
+        message={confirmDelete.type === 'tarea'
           ? "¿Estás seguro de que deseas eliminar esta tarea completa? Todas sus subtareas también se borrarán."
           : "¿Estás seguro de que deseas eliminar esta subtarea? Esta acción no se puede deshacer."}
         onConfirm={handleConfirmDelete}
@@ -1222,11 +1236,10 @@ function TareasList({ tareas, setTareas, user }) {
                               const nuevoEstado = t.estado === "Completada" ? "Pendiente" : "Completada";
                               cambiarEstadoTarea(t.id, nuevoEstado);
                             }}
-                            className={`flex flex-shrink-0 w-5 h-5 rounded-full border-2 items-center justify-center transition-colors ${
-                              t.estado === "Completada" 
-                                ? "bg-green-500 border-green-500 text-white" 
+                            className={`flex flex-shrink-0 w-5 h-5 rounded-full border-2 items-center justify-center transition-colors ${t.estado === "Completada"
+                                ? "bg-green-500 border-green-500 text-white"
                                 : "border-gray-300 hover:border-green-400 bg-white"
-                            }`}
+                              }`}
                             title={t.estado === "Completada" ? "Marcar como pendiente" : "Marcar como completada"}
                           >
                             {t.estado === "Completada" && (
@@ -1235,9 +1248,8 @@ function TareasList({ tareas, setTareas, user }) {
                               </svg>
                             )}
                           </button>
-                          <p className={`font-bold text-sm truncate transition-all ${
-                            t.estado === "Completada" ? "text-gray-400 line-through" : "text-gray-800"
-                          }`}>
+                          <p className={`font-bold text-sm truncate transition-all ${t.estado === "Completada" ? "text-gray-400 line-through" : "text-gray-800"
+                            }`}>
                             {t.titulo}
                           </p>
                         </div>
@@ -1293,16 +1305,16 @@ function TareasList({ tareas, setTareas, user }) {
                         {editingDate.id === t.id && editingDate.type === 'tarea' ? (
                           <div className="flex items-center gap-2 bg-gray-100 p-1.5 rounded-lg border border-yellow-300" onClick={e => e.stopPropagation()}>
                             <span className="text-xs font-bold text-gray-600">Fin:</span>
-                            <select value={editDateForm.dia} onChange={e => setEditDateForm({...editDateForm, dia: e.target.value})} className="text-xs px-1 py-0.5 rounded outline-none w-12 cursor-pointer bg-white">
+                            <select value={editDateForm.dia} onChange={e => setEditDateForm({ ...editDateForm, dia: e.target.value })} className="text-xs px-1 py-0.5 rounded outline-none w-12 cursor-pointer bg-white">
                               <option value="">Día</option>
                               {DIAS.map(d => <option key={d} value={d}>{d}</option>)}
                             </select>
-                            <select value={editDateForm.mes} onChange={e => setEditDateForm({...editDateForm, mes: e.target.value})} className="text-xs px-1 py-0.5 rounded outline-none w-20 cursor-pointer bg-white">
+                            <select value={editDateForm.mes} onChange={e => setEditDateForm({ ...editDateForm, mes: e.target.value })} className="text-xs px-1 py-0.5 rounded outline-none w-20 cursor-pointer bg-white">
                               <option value="">Mes</option>
                               {MESES.map(m => <option key={m} value={m}>{m}</option>)}
                             </select>
                             <button type="button" onClick={saveEditedDate} className="bg-green-500 text-white text-xs px-2 py-0.5 rounded font-bold hover:bg-green-600">✓</button>
-                            <button type="button" onClick={(e) => { e.stopPropagation(); setEditingDate({id: null, type: null, subId: null}) }} className="bg-gray-400 text-white text-xs px-2 py-0.5 rounded font-bold hover:bg-gray-500">✕</button>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setEditingDate({ id: null, type: null, subId: null }) }} className="bg-gray-400 text-white text-xs px-2 py-0.5 rounded font-bold hover:bg-gray-500">✕</button>
                           </div>
                         ) : (
                           <span className="text-xs text-gray-500 flex items-center gap-1 group bg-gray-50 px-2 py-1 rounded">
@@ -1347,11 +1359,10 @@ function TareasList({ tareas, setTareas, user }) {
                                     const nuevoEstado = sub.estado === "Completada" ? "Pendiente" : "Completada";
                                     cambiarEstadoSubtarea(t.id, sub.id, nuevoEstado);
                                   }}
-                                  className={`flex flex-shrink-0 w-4 h-4 rounded-full border-2 items-center justify-center transition-colors ${
-                                    sub.estado === "Completada" 
-                                      ? "bg-green-500 border-green-500 text-white" 
+                                  className={`flex flex-shrink-0 w-4 h-4 rounded-full border-2 items-center justify-center transition-colors ${sub.estado === "Completada"
+                                      ? "bg-green-500 border-green-500 text-white"
                                       : "border-gray-300 hover:border-green-400 bg-white"
-                                  }`}
+                                    }`}
                                   title={sub.estado === "Completada" ? "Marcar como pendiente" : "Marcar como completada"}
                                 >
                                   {sub.estado === "Completada" && (
@@ -1360,23 +1371,22 @@ function TareasList({ tareas, setTareas, user }) {
                                     </svg>
                                   )}
                                 </button>
-                                <span className={`flex-1 text-xs transition-all ${
-                                  sub.estado === "Completada" ? "text-gray-400 line-through" : "text-gray-700"
-                                }`}>
+                                <span className={`flex-1 text-xs transition-all ${sub.estado === "Completada" ? "text-gray-400 line-through" : "text-gray-700"
+                                  }`}>
                                   {sub.nombre}
                                 </span>
                                 {editingDate.id === t.id && editingDate.subId === sub.id ? (
                                   <div className="flex items-center gap-1 scale-95" onClick={e => e.stopPropagation()}>
-                                    <select value={editDateForm.dia} onChange={e => setEditDateForm({...editDateForm, dia: e.target.value})} className="text-xs px-1 py-0.5 rounded border outline-none w-10">
+                                    <select value={editDateForm.dia} onChange={e => setEditDateForm({ ...editDateForm, dia: e.target.value })} className="text-xs px-1 py-0.5 rounded border outline-none w-10">
                                       <option value="">Día</option>
                                       {DIAS.map(d => <option key={d} value={d}>{d}</option>)}
                                     </select>
-                                    <select value={editDateForm.mes} onChange={e => setEditDateForm({...editDateForm, mes: e.target.value})} className="text-xs px-1 py-0.5 rounded border outline-none w-16">
+                                    <select value={editDateForm.mes} onChange={e => setEditDateForm({ ...editDateForm, mes: e.target.value })} className="text-xs px-1 py-0.5 rounded border outline-none w-16">
                                       <option value="">Mes</option>
                                       {MESES.map(m => <option key={m} value={m}>{m}</option>)}
                                     </select>
                                     <button type="button" onClick={saveEditedDate} className="text-green-500 hover:text-green-600 font-bold ml-1">✓</button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setEditingDate({id: null, type: null, subId: null}) }} className="text-gray-500 hover:text-gray-600 font-bold ml-1">✕</button>
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setEditingDate({ id: null, type: null, subId: null }) }} className="text-gray-500 hover:text-gray-600 font-bold ml-1">✕</button>
                                   </div>
                                 ) : (
                                   <span className="text-xs text-gray-500 flex items-center gap-1 group">
@@ -1410,7 +1420,32 @@ function TareasList({ tareas, setTareas, user }) {
                           </div>
                         </>
                       )}
-                      <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Agregar subtarea:</p>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">Agregar subtarea:</p>
+                        <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 rounded-full border border-amber-100">
+                          <span className="text-[10px] font-black text-amber-600 uppercase">Límite Diario: {limitHours}h</span>
+                          {/* Pequeño calculador de carga en tiempo real */}
+                          {(() => {
+                            const subForm = nuevasSubtareasPorTarea[t.id];
+                            if (subForm?.dia && subForm?.mes) {
+                               const dateKey = `${subForm.dia} ${subForm.mes}`;
+                               let load = 0;
+                               tareas.forEach(tk => {
+                                 (tk.subtareas || []).forEach(s => {
+                                   if (s.fecha === dateKey && s.estado !== "Completada") load += Number(s.horas || 0);
+                                 });
+                               });
+                               const nextLoad = load + Number(subForm.horas || 0);
+                               return (
+                                 <span className={`text-[10px] font-black uppercase ml-2 ${nextLoad > limitHours ? 'text-red-500' : 'text-green-600'}`}>
+                                   Carga: {nextLoad}h / {limitHours}h
+                                 </span>
+                               );
+                            }
+                            return null;
+                          })()}
+                        </div>
+                      </div>
                       <div className="grid grid-cols-6 gap-2 items-center">
                         <input
                           type="text"
