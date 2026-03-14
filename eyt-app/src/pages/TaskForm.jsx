@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Toast } from "../components/Toast";
 import { getCourses, getTasks, addTask } from "../utils/storage";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { ConflictModal } from "../components/ConflictModal";
 
 const ESTADOS = ["Pendiente", "En progreso", "Completada", "Cancelada"];
 const PRIORIDADES = ["Baja", "Media", "Alta", "Crítica"];
@@ -753,96 +754,24 @@ export function TaskForm({ user, onTaskCreated }) {
         </div>
       )}
 
-      {/* Modal de Conflicto */}
-      {conflicto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900 bg-opacity-40 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-lg w-full border border-red-100 relative">
-            <div className="flex flex-col items-center text-center mb-6">
-              <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-3xl mb-4 shadow-sm border border-red-100">
-                ⚠️
-              </div>
-              <h2 className="text-xl font-black text-gray-800 tracking-tight">Sobrecarga Detectada</h2>
-              <p className="text-sm text-gray-500 mt-2 leading-relaxed">
-                El día <span className="font-bold text-gray-700">{conflicto.fecha}</span> supera tu límite diario de <span className="font-bold text-red-500">{conflicto.limite}h</span>.
-                Actualmente tienes <span className="font-bold">{conflicto.actual}h</span> planificadas e intentas sumar <span className="font-bold">{conflicto.horasIntentadas}h</span> con <em>"{conflicto.subtarea.nombre}"</em>.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-4">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest text-center">Estrategias de Solución</p>
-              
-              {/* Opción 1: Mover */}
-              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 hover:border-yellow-300 transition-colors">
-                <p className="text-sm font-bold text-gray-700 mb-2">Opción A: Mover a otro día</p>
-                <div className="flex gap-2">
-                  <select id="modal-move-day" className="flex-1 bg-white rounded-xl px-3 py-2 text-sm text-gray-700 outline-none border border-gray-200">
-                    <option value="">Nuevo Día</option>
-                    {DIAS.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                  <select id="modal-move-month" className="flex-1 bg-white rounded-xl px-3 py-2 text-sm text-gray-700 outline-none border border-gray-200">
-                    <option value="">Mes</option>
-                    {MESES.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                  <button 
-                    onClick={() => {
-                      const d = document.getElementById("modal-move-day").value;
-                      const m = document.getElementById("modal-move-month").value;
-                      if (d && m) resolverConflicto("mover", `${d} ${m}`);
-                      else setToast({ message: "⚠️ Por favor, selecciona un día y un mes para reubicar la tarea.", type: "error" });
-                    }}
-                    className="px-4 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-colors"
-                  >
-                    Aplicar
-                  </button>
-                </div>
-              </div>
-
-              {/* Opción 2: Reducir */}
-              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 hover:border-yellow-300 transition-colors">
-                <p className="text-sm font-bold text-gray-700 mb-2">Opción B: Reducir horas estimadas</p>
-                <div className="flex gap-2">
-                  <input 
-                    id="modal-reduce-hours"
-                    type="number" 
-                    min="1" 
-                    max={conflicto.limite - conflicto.actual > 0 ? conflicto.limite - conflicto.actual : 1}
-                    defaultValue={conflicto.limite - conflicto.actual > 0 ? conflicto.limite - conflicto.actual : 1}
-                    className="flex-1 bg-white rounded-xl px-3 py-2 text-sm text-gray-700 outline-none border border-gray-200"
-                  />
-                  <button 
-                    onClick={() => {
-                      const h = document.getElementById("modal-reduce-hours").value;
-                      if (h) resolverConflicto("reducir", h);
-                    }}
-                    className="px-4 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-colors"
-                  >
-                    Aplicar
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => {
-                setConflicto(null);
-                setPendingTask(null);
-              }}
-              className="mt-6 w-full py-3 rounded-xl text-sm font-bold text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-            >
-              Cancelar Creación
-            </button>
-          </div>
-        </div>
-      )}
+      <ConflictModal 
+        conflicto={conflicto}
+        onResolve={resolverConflicto}
+        onCancel={() => {
+          setConflicto(null);
+          setPendingTask(null);
+        }}
+        setToast={setToast}
+      />
 
       {/* Lista de tareas creadas */}
-      <TareasList tareas={tareas} setTareas={setTareas} />
+      <TareasList tareas={tareas} setTareas={setTareas} user={user} />
     </div>
   );
 }
 
 // ── Lista de tareas guardadas ─────────────────────────────────────
-function TareasList({ tareas, setTareas }) {
+function TareasList({ tareas, setTareas, user }) {
   const [expanded, setExpanded] = useState({});
   const [nuevasSubtareasPorTarea, setNuevasSubtareasPorTarea] = useState({});
   const [toast, setToast] = useState(null);
@@ -850,6 +779,9 @@ function TareasList({ tareas, setTareas }) {
   const [editingDate, setEditingDate] = useState({ id: null, type: null, subId: null });
   const [editDateForm, setEditDateForm] = useState({ dia: "", mes: "" });
   const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, type: null, tareaId: null, subtareaId: null });
+  const [conflicto, setConflicto] = useState(null);
+  const [pendingSubtaskData, setPendingSubtaskData] = useState(null);
+  const limitHours = user?.settings?.limite_diario || 6;
 
   useEffect(() => {
     // We can also fetch courses here or receive them as props, but since they may change we re-fetch them.
@@ -938,47 +870,59 @@ function TareasList({ tareas, setTareas }) {
     }
   };
 
+  const checkAndAddSubtarea = async (tareaId, nuevaSub) => {
+    const fecha = `${nuevaSub.dia} ${nuevaSub.mes}`;
+    const horasNuevas = parseInt(nuevaSub.horas) || 0;
+
+    // Validación de sobrecarga
+    let totalHorasDia = 0;
+    tareas.forEach(t => {
+      if (t.subtareas && t.estado !== "Completada") {
+        t.subtareas.forEach(sub => {
+          if (sub.estado !== "Completada" && sub.fecha === fecha) {
+            totalHorasDia += (sub.horas || 0);
+          }
+        });
+      }
+    });
+
+    if (totalHorasDia + horasNuevas > limitHours) {
+      setConflicto({
+        subtarea: { nombre: nuevaSub.nombre.trim(), dia: nuevaSub.dia, mes: nuevaSub.mes, horas: horasNuevas, id: Date.now() },
+        index: null,
+        fecha: fecha,
+        exceso: totalHorasDia + horasNuevas - limitHours,
+        actual: totalHorasDia,
+        limite: limitHours,
+        horasIntentadas: horasNuevas
+      });
+      setPendingSubtaskData({ type: 'add', tareaId, nuevaSub });
+      return;
+    }
+
+    try {
+      const tarea = tareas.find(t => t.id === tareaId);
+      if (!tarea) return;
+
+      const subtareasActuales = tarea.subtareas || [];
+      const nuevasSubtareas = [...subtareasActuales, { id: Date.now(), nombre: nuevaSub.nombre.trim(), fecha, horas: horasNuevas, estado: "Pendiente" }];
+
+      await import("../utils/storage").then(m => m.updateTask(tareaId, { subtareas: nuevasSubtareas }));
+
+      const nuevasTareas = tareas.map(t => t.id === tareaId ? { ...t, subtareas: nuevasSubtareas } : t);
+      setTareas(nuevasTareas);
+      setNuevasSubtareasPorTarea(prev => ({ ...prev, [tareaId]: { nombre: "", dia: "", mes: "", horas: "" } }));
+      setToast({ message: "➕ Subtarea agregada exitosamente!", type: "success" });
+      setTimeout(() => setToast(null), 2500);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   const agregarSubtareaExistente = async (tareaId) => {
     const nuevaSub = nuevasSubtareasPorTarea[tareaId];
     if (nuevaSub && nuevaSub.nombre.trim() && nuevaSub.dia && nuevaSub.mes && nuevaSub.horas) {
-      const fecha = `${nuevaSub.dia} ${nuevaSub.mes}`;
-      const horasNuevas = parseInt(nuevaSub.horas) || 0;
-
-      // Validación de sobrecarga
-      let totalHorasDia = 0;
-      tareas.forEach(t => {
-        if (t.subtareas && t.estado !== "Completada") {
-          t.subtareas.forEach(sub => {
-            if (sub.estado !== "Completada" && sub.fecha === fecha) {
-              totalHorasDia += (sub.horas || 0);
-            }
-          });
-        }
-      });
-
-      if (totalHorasDia + horasNuevas > 8) {
-        setToast({ message: `⚠️ Sobrecarga detectada: El día ${fecha} ya tiene ${totalHorasDia}h. No se pueden agregar ${horasNuevas}h más.`, type: "error" });
-        setTimeout(() => setToast(null), 5000);
-        return;
-      }
-
-      try {
-        const tarea = tareas.find(t => t.id === tareaId);
-        if (!tarea) return;
-
-        const subtareasActuales = tarea.subtareas || [];
-        const nuevasSubtareas = [...subtareasActuales, { id: Date.now(), nombre: nuevaSub.nombre.trim(), fecha, horas: horasNuevas, estado: "Pendiente" }];
-
-        await import("../utils/storage").then(m => m.updateTask(tareaId, { subtareas: nuevasSubtareas }));
-
-        const nuevasTareas = tareas.map(t => t.id === tareaId ? { ...t, subtareas: nuevasSubtareas } : t);
-        setTareas(nuevasTareas);
-        setNuevasSubtareasPorTarea(prev => ({ ...prev, [tareaId]: { nombre: "", dia: "", mes: "", horas: "" } }));
-        setToast({ message: "➕ Subtarea agregada exitosamente!", type: "success" });
-        setTimeout(() => setToast(null), 2500);
-      } catch (error) {
-        console.error(error);
-      }
+      checkAndAddSubtarea(tareaId, nuevaSub);
     }
   };
 
@@ -1036,28 +980,25 @@ function TareasList({ tareas, setTareas }) {
     setEditingDate({ id: tarea.id, type: subId ? 'subtarea' : 'tarea', subId });
   };
 
-  const saveEditedDate = async (e) => {
-    e.stopPropagation();
-    if (!editDateForm.dia || !editDateForm.mes) return;
-    
-    const nuevaFecha = `${editDateForm.dia} ${editDateForm.mes}`;
+  const checkAndSaveEditedDate = async (editingDateObj, editDateFormObj, overridedSub = null) => {
+    const nuevaFecha = `${editDateFormObj.dia} ${editDateFormObj.mes}`;
     
     try {
-      if (editingDate.type === 'tarea') {
-        await import("../utils/storage").then(m => m.updateTask(editingDate.id, { fin: nuevaFecha }));
-        setTareas(tareas.map(t => t.id === editingDate.id ? { ...t, fin: nuevaFecha } : t));
+      if (editingDateObj.type === 'tarea') {
+        await import("../utils/storage").then(m => m.updateTask(editingDateObj.id, { fin: nuevaFecha }));
+        setTareas(tareas.map(t => t.id === editingDateObj.id ? { ...t, fin: nuevaFecha } : t));
         setToast({ message: "📅 Fecha de tarea reprogramada exitosamente", type: "success" });
       } else {
-        const tarea = tareas.find(t => t.id === editingDate.id);
-        const subOriginal = tarea.subtareas.find(s => s.id === editingDate.subId);
+        const tarea = tareas.find(t => t.id === editingDateObj.id);
+        const subOriginal = overridedSub || tarea.subtareas.find(s => s.id === editingDateObj.subId);
         
         // Validación de sobrecarga para cambio de fecha de subtarea
         let totalHorasDia = 0;
         tareas.forEach(t => {
           if (t.subtareas && t.estado !== "Completada") {
             t.subtareas.forEach(sub => {
-              // No sumar la propia subtarea siendo editada si tenía la misma fecha
-              if (sub.id === editingDate.subId) return;
+              // No sumar la propia subtarea siendo editada
+              if (sub.id === editingDateObj.subId) return;
               if (sub.estado !== "Completada" && sub.fecha === nuevaFecha) {
                 totalHorasDia += (sub.horas || 0);
               }
@@ -1065,15 +1006,24 @@ function TareasList({ tareas, setTareas }) {
           }
         });
 
-        if (totalHorasDia + (subOriginal?.horas || 0) > 8) {
-          setToast({ message: `⚠️ Sobrecarga: Mover a ${nuevaFecha} excedería las 8h diarias (actual: ${totalHorasDia}h)`, type: "error" });
-          setTimeout(() => setToast(null), 5000);
+        const horasNuevas = parseInt(subOriginal?.horas) || 0;
+        if (totalHorasDia + horasNuevas > limitHours) {
+          setConflicto({
+            subtarea: subOriginal,
+            index: null,
+            fecha: nuevaFecha,
+            exceso: totalHorasDia + horasNuevas - limitHours,
+            actual: totalHorasDia,
+            limite: limitHours,
+            horasIntentadas: horasNuevas
+          });
+          setPendingSubtaskData({ type: 'edit', editingDateObj, editDateFormObj, subOriginal });
           return;
         }
 
-        const nuevasSubtareas = tarea.subtareas.map(s => s.id === editingDate.subId ? { ...s, fecha: nuevaFecha } : s);
-        await import("../utils/storage").then(m => m.updateTask(editingDate.id, { subtareas: nuevasSubtareas }));
-        setTareas(tareas.map(t => t.id === editingDate.id ? { ...t, subtareas: nuevasSubtareas } : t));
+        const nuevasSubtareas = tarea.subtareas.map(s => s.id === editingDateObj.subId ? { ...s, fecha: nuevaFecha, horas: horasNuevas } : s);
+        await import("../utils/storage").then(m => m.updateTask(editingDateObj.id, { subtareas: nuevasSubtareas }));
+        setTareas(tareas.map(t => t.id === editingDateObj.id ? { ...t, subtareas: nuevasSubtareas } : t));
         setToast({ message: "📅 Fecha de subtarea reprogramada exitosamente", type: "success" });
       }
       setTimeout(() => setToast(null), 2500);
@@ -1081,6 +1031,45 @@ function TareasList({ tareas, setTareas }) {
     } catch (error) {
       console.error(error);
       setToast({ message: "❌ Error al reprogramar fecha", type: "error" });
+    }
+  };
+
+  const saveEditedDate = async (e) => {
+    e.stopPropagation();
+    if (!editDateForm.dia || !editDateForm.mes) return;
+    checkAndSaveEditedDate(editingDate, editDateForm);
+  };
+
+  const resolverConflictoList = (estrategia, nuevoValor) => {
+    if (!conflicto || !pendingSubtaskData) return;
+    
+    setConflicto(null);
+
+    if (pendingSubtaskData.type === 'add') {
+      const { tareaId, nuevaSub } = pendingSubtaskData;
+      let resSub = { ...nuevaSub };
+      if (estrategia === "mover") {
+        const [d, m] = nuevoValor.split(" ");
+        resSub.dia = d;
+        resSub.mes = m;
+      } else if (estrategia === "reducir") {
+        resSub.horas = Number(nuevoValor);
+      }
+      checkAndAddSubtarea(tareaId, resSub);
+    } else if (pendingSubtaskData.type === 'edit') {
+      const { editingDateObj, editDateFormObj, subOriginal } = pendingSubtaskData;
+      let resEditDateForm = { ...editDateFormObj };
+      let updatedSubOriginal = { ...subOriginal };
+      
+      if (estrategia === "mover") {
+        const [d, m] = nuevoValor.split(" ");
+        resEditDateForm.dia = d;
+        resEditDateForm.mes = m;
+        checkAndSaveEditedDate(editingDateObj, resEditDateForm, updatedSubOriginal);
+      } else if (estrategia === "reducir") {
+        updatedSubOriginal.horas = Number(nuevoValor);
+        checkAndSaveEditedDate(editingDateObj, editDateFormObj, updatedSubOriginal);
+      }
     }
   };
 
@@ -1173,6 +1162,15 @@ function TareasList({ tareas, setTareas }) {
 
   return (
     <div className="mt-6 max-w-2xl mx-auto flex flex-col gap-6">
+      <ConflictModal 
+        conflicto={conflicto}
+        onResolve={resolverConflictoList}
+        onCancel={() => {
+          setConflicto(null);
+          setPendingSubtaskData(null);
+        }}
+        setToast={setToast}
+      />
       <ConfirmModal 
         isOpen={confirmDelete.isOpen}
         title={confirmDelete.type === 'tarea' ? 'Eliminar Tarea' : 'Eliminar Subtarea'}
