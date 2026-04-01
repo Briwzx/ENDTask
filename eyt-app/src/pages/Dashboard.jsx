@@ -5,6 +5,7 @@ import { logoutUser, getCurrentUserProfile, getTasks, getCourses } from "../util
 import { TaskForm } from "./TaskForm";
 import { Rendimiento } from "./Rendimiento";
 import { AddCurse } from "./AddCurse";
+import { Perfil } from "./Perfil";
 import { Configuracion } from "./Configuracion";
 
 const NAV_ITEMS = ["TAREAS", "CURSOS", "RENDIMIENTO", "PERFIL", "CONFIGURACIÓN"];
@@ -169,47 +170,12 @@ export function Dashboard() {
 
         {/* ── PERFIL ── */}
         {activeNav === "PERFIL" && (
-          <div className="p-10">
-            <div className="max-w-sm bg-white rounded-2xl shadow-md p-8 flex flex-col gap-4">
-              <div className="flex items-center gap-4">
-                <div
-                  className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-black"
-                  style={{ background: "#f0e8c8", color: "#a8882a" }}
-                >
-                  {user.nombre[0]}{user.apellido[0]}
-                </div>
-                <div>
-                  <p className="font-black text-gray-800 text-lg">
-                    {user.nombre} {user.apellido}
-                  </p>
-                  <p className="text-xs text-gray-400">{user.email}</p>
-                </div>
-              </div>
-              <div className="h-px bg-gray-100" />
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Teléfono</p>
-                  <p className="font-semibold text-gray-700">{user.telefono}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Año Nac.</p>
-                  <p className="font-semibold text-gray-700">{user.anio}</p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Tareas creadas</p>
-                  <p className="font-semibold text-gray-700">
-                    {tareas.length}
-                  </p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Cursos registrados</p>
-                  <p className="font-semibold text-gray-700">
-                    {cursos.length}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <Perfil 
+            user={user} 
+            onUpdateUser={setUser} 
+            tareasCount={tareas.length} 
+            cursosCount={cursos.length} 
+          />
         )}
 
         {/* ── CONFIGURACIÓN ── */}

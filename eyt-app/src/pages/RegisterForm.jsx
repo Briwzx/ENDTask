@@ -14,10 +14,10 @@ export function RegisterForm({ showToast }) {
     nombre: "", apellido: "", telefono: "",
     email: "", anio: "", password: "", confirm: "",
   });
-  const [showPw, setShowPw]   = useState(false);
-  const [showCf, setShowCf]   = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const [showCf, setShowCf] = useState(false);
   const [accepted, setAccepted] = useState(false);
-  const [errors, setErrors]   = useState({});
+  const [errors, setErrors] = useState({});
 
   const ch = (field) => (e) => setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
@@ -25,14 +25,14 @@ export function RegisterForm({ showToast }) {
     e.preventDefault();
     const errs = {};
 
-    if (!form.nombre.trim())       errs.nombre   = "El nombre es requerido";
-    if (!form.apellido.trim())     errs.apellido = "El apellido es requerido";
-    if (!form.telefono.trim())     errs.telefono = "El teléfono es requerido";
-    if (!form.email.trim())        errs.email    = "El correo es requerido";
-    if (!form.anio)                errs.anio     = "Selecciona un año";
-    if (form.password.length < 8)  errs.password = "La contraseña debe tener al menos 8 caracteres";
+    if (!form.nombre.trim()) errs.nombre = "El nombre es requerido";
+    if (!form.apellido.trim()) errs.apellido = "El apellido es requerido";
+    if (!form.telefono.trim()) errs.telefono = "El teléfono es requerido";
+    if (!form.email.trim()) errs.email = "El correo es requerido";
+    if (!form.anio) errs.anio = "Selecciona un año";
+    if (form.password.length < 8) errs.password = "La contraseña debe tener al menos 8 caracteres";
     if (form.password !== form.confirm) errs.confirm = "Asegúrate de que las contraseñas coincidan";
-    if (!accepted)                 errs.terms    = "Debes aceptar los términos";
+    if (!accepted) errs.terms = "Debes aceptar los términos";
 
     if (Object.keys(errs).length) {
       setErrors(errs);
@@ -121,9 +121,8 @@ export function RegisterForm({ showToast }) {
       {/* Términos */}
       <label className="flex items-start gap-2 cursor-pointer select-none">
         <div onClick={() => setAccepted(!accepted)}
-          className={`w-4 h-4 mt-0.5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all ${
-            accepted ? "border-yellow-500 bg-yellow-400" : "border-gray-300"
-          }`}>
+          className={`w-4 h-4 mt-0.5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all ${accepted ? "border-yellow-500 bg-yellow-400" : "border-gray-300"
+            }`}>
           {accepted && (
             <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24"
               stroke="currentColor" strokeWidth={3}>

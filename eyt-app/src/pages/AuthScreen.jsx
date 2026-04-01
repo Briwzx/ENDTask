@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { RegisterForm } from "./RegisterForm";
-import { LoginForm }    from "./LoginForm";
-import { Toast }        from "../components/Toast";
+import { LoginForm } from "./LoginForm";
+import { Toast } from "../components/Toast";
 
 export function AuthScreen() {
   const navigate = useNavigate();
-  const [tab, setTab]     = useState("register");
+  const [tab, setTab] = useState("register");
   const [toast, setToast] = useState(null);
 
   const showToast = (msg, type = "error") => {
@@ -48,15 +48,14 @@ export function AuthScreen() {
         <div className="flex items-center mx-10 mb-5 border-b border-gray-200">
           {[
             { key: "register", label: "REGISTRARSE" },
-            { key: "login",    label: "INICIO SESIÓN" },
+            { key: "login", label: "INICIO SESIÓN" },
           ].map(({ key, label }) => (
             <button
               key={key}
               type="button"
               onClick={() => setTab(key)}
-              className={`flex-1 pb-3 text-xs font-bold tracking-widest transition-all relative ${
-                tab === key ? "text-gray-900" : "text-gray-400"
-              }`}
+              className={`flex-1 pb-3 text-xs font-bold tracking-widest transition-all relative ${tab === key ? "text-gray-900" : "text-gray-400"
+                }`}
             >
               {label}
               {tab === key && (

@@ -8,11 +8,10 @@ export function Field({ label, icon, error, children }) {
         {label}
       </label>
       <div
-        className={`flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3 border transition-all ${
-          error
+        className={`flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3 border transition-all ${error
             ? "border-red-400"
             : "border-gray-200 focus-within:border-yellow-400 focus-within:bg-white"
-        }`}
+          }`}
       >
         {icon}
         {children}

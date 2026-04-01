@@ -3,6 +3,7 @@ import { Toast } from "../components/Toast";
 import { getCourses, getTasks, addTask } from "../utils/storage";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { ConflictModal } from "../components/ConflictModal";
+import { AlertModal } from "../components/AlertModal";
 
 const ESTADOS = ["Pendiente", "En progreso", "Completada", "Cancelada"];
 const PRIORIDADES = ["Baja", "Media", "Alta", "Crítica"];
@@ -21,6 +22,27 @@ const MESES = [
   "Diciembre",
 ];
 const DIAS = Array.from({ length: 31 }, (_, i) => i + 1);
+
+const encontrarDiaRecomendado = (fechaOriginal, mapaHoras, limite) => {
+  if (!fechaOriginal || fechaOriginal === "—") return null;
+  const [diaStr, mesStr] = fechaOriginal.split(" ");
+  const d = parseInt(diaStr);
+  const mIdx = MESES.indexOf(mesStr);
+  if (isNaN(d) || mIdx === -1) return null;
+  
+  const date = new Date(new Date().getFullYear(), mIdx, d + 1);
+  for (let i = 0; i < 14; i++) {
+    const tempDia = date.getDate();
+    const tempMes = MESES[date.getMonth()];
+    const fechaString = `${tempDia} ${tempMes}`;
+    const cargaEseDia = Number(mapaHoras[fechaString] || 0);
+    if (cargaEseDia < limite) {
+      return { dia: tempDia.toString(), mes: tempMes };
+    }
+    date.setDate(date.getDate() + 1);
+  }
+  return null;
+};
 
 function SelectField({ label, value, onChange, options }) {
   return (
@@ -61,14 +83,13 @@ function SelectField({ label, value, onChange, options }) {
 
 export function TaskForm({ user, onTaskCreated }) {
   const [showForm, setShowForm] = useState(false);
-  const [etiquetas, setEtiquetas] = useState([]);
-  const [nuevaEtiqueta, setNuevaEtiqueta] = useState("");
   const [error, setError] = useState("");
   const [conflicto, setConflicto] = useState(null);
   const [pendingTask, setPendingTask] = useState(null);
   const [cursos, setCursos] = useState([]);
   const [toast, setToast] = useState(null);
   const [tareas, setTareas] = useState([]);
+  const [alert, setAlert] = useState({ isOpen: false, title: "", message: "" });
   const [form, setForm] = useState({
     nombre: "",
     descripcion: "",
@@ -109,7 +130,16 @@ export function TaskForm({ user, onTaskCreated }) {
 
   const validateDates = () => {
     const { inicioDia, inicioMes, finDia, finMes } = form;
-    if (!inicioDia || !inicioMes || !finDia || !finMes) return true; // If not all selected, allow (maybe warn later)
+    
+    // Si no se llenó nada, mostrar alerta (a menos que permitas tareas sin fecha, pero el usuario pidió alerta)
+    if (!inicioDia || !inicioMes || !finDia || !finMes) {
+      setAlert({
+        isOpen: true,
+        title: "Fechas incompletas",
+        message: "Por favor, completa todas las fechas de inicio y entrega para la tarea."
+      });
+      return false;
+    }
 
     const startMonth = getMonthIndex(inicioMes);
     const endMonth = getMonthIndex(finMes);
@@ -117,10 +147,13 @@ export function TaskForm({ user, onTaskCreated }) {
     const endDay = parseInt(finDia);
 
     if (endMonth < startMonth || (endMonth === startMonth && endDay < startDay)) {
-      setError("Por favor, asegúrate de que la fecha de entrega sea posterior a la fecha de inicio.");
+      setAlert({
+        isOpen: true,
+        title: "Error en fechas",
+        message: "La fecha de entrega debe ser posterior a la fecha de inicio."
+      });
       return false;
     }
-    setError("");
     return true;
   };
 
@@ -136,13 +169,6 @@ export function TaskForm({ user, onTaskCreated }) {
     }));
   };
 
-  const agregarEtiqueta = () => {
-    const val = nuevaEtiqueta.trim();
-    if (val && !etiquetas.includes(val)) {
-      setEtiquetas([...etiquetas, val]);
-      setNuevaEtiqueta("");
-    }
-  };
 
 
   const actualizarSubtareaForm = (index, field, value) => {
@@ -162,13 +188,32 @@ export function TaskForm({ user, onTaskCreated }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.nombre.trim()) {
-      setToast({ message: "❌ Por favor, ingresa un nombre para la tarea.", type: "error" });
-      setTimeout(() => setToast(null), 3000);
+      setAlert({ 
+        isOpen: true, 
+        title: "Faltan datos", 
+        message: "Por favor, ingresa un nombre para la tarea antes de guardar." 
+      });
       return;
     }
     if (!validateDates()) return;
 
     const limitHours = Number(user?.settings?.limite_diario || 6);
+
+    // Verificar si hay subtareas incompletas (que tengan algo pero no todo)
+    const haySubtareaIncompleta = subtareasFormulario.some(s => 
+      (s.nombre.trim() || s.dia || s.mes || s.horas) && 
+      !(s.nombre.trim() && s.dia && s.mes && s.horas)
+    );
+
+    if (haySubtareaIncompleta) {
+      setAlert({
+        isOpen: true,
+        title: "Subtareas incompletas",
+        message: "Una o más subtareas tienen campos vacíos. Por favor, complétalas o elimínalas antes de guardar la tarea."
+      });
+      return;
+    }
+
     const todasLasSubtareasCandidatas = [
       ...subtareas,
       ...subtareasFormulario
@@ -193,7 +238,6 @@ export function TaskForm({ user, onTaskCreated }) {
           ? `${form.inicioDia} ${form.inicioMes}`
           : "—",
       fin: form.finMes && form.finDia ? `${form.finDia} ${form.finMes}` : "—",
-      etiquetas,
       vence: form.prioridad === "Crítica" || form.prioridad === "Alta",
       completada: false,
       subtareas: todasLasSubtareasCandidatas,
@@ -245,7 +289,8 @@ export function TaskForm({ user, onTaskCreated }) {
     }
 
     if (conflictoEncontrado) {
-      setConflicto(conflictoEncontrado);
+      const diaRec = encontrarDiaRecomendado(conflictoEncontrado.fecha, horasPorDia, limitHours);
+      setConflicto({ ...conflictoEncontrado, recomendado: diaRec });
       setPendingTask(tarea);
       return;
     }
@@ -423,200 +468,106 @@ export function TaskForm({ user, onTaskCreated }) {
               </div>
             </div>
 
-            {/* Fechas + Etiquetas */}
-            <div className="grid grid-cols-2 gap-6">
-              {/* Fechas */}
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between border-b border-blue-400 pb-1">
-                  <span className="text-sm font-black text-gray-700">
-                    Fecha
-                  </span>
+            {/* Sección de Fechas */}
+            <div className="bg-amber-50/30 p-5 rounded-2xl border border-amber-100/50 flex flex-col gap-4">
+              <div className="flex items-center justify-between border-b border-amber-200 pb-2">
+                <span className="text-xs font-black text-gray-700 uppercase tracking-widest flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                  Planificación de Fechas
+                </span>
 
-                  <button
-                    type="button"
-                    onClick={setDesdeHoy}
-                    className="text-xs font-bold px-3 py-1 rounded-lg text-white hover:scale-105 transition-transform"
-                    style={{
-                      background: "linear-gradient(135deg, #c8a84b, #a8882a)",
-                    }}
-                  >
-                    Desde hoy
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={setDesdeHoy}
+                  className="text-[10px] font-black px-3 py-1.5 rounded-xl text-white uppercase tracking-widest hover:scale-105 transition-transform"
+                  style={{
+                    background: "linear-gradient(135deg, #c8a84b, #a8882a)",
+                  }}
+                >
+                  Establecer desde hoy
+                </button>
+              </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">
-                    Inicio de tarea:
+              <div className="grid grid-cols-2 gap-8">
+                {/* Inicio de tarea */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">
+                    📅 Fecha de Inicio:
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="relative">
                       <select
                         value={form.inicioDia}
                         onChange={ch("inicioDia")}
-                        className="w-full bg-gray-100 rounded-xl px-3 py-2.5 text-sm text-gray-700 outline-none appearance-none border border-transparent focus:border-yellow-400 transition-all cursor-pointer"
+                        className="w-full bg-white rounded-xl px-3 py-2.5 text-sm text-gray-700 outline-none appearance-none border border-amber-100 focus:border-yellow-400 transition-all cursor-pointer shadow-sm"
                       >
                         <option value="">Día</option>
                         {DIAS.map((d) => (
-                          <option key={d} value={d}>
-                            {d}
-                          </option>
+                          <option key={d} value={d}>{d}</option>
                         ))}
                       </select>
-                      <svg
-                        className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
+                      <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </div>
                     <div className="relative">
                       <select
                         value={form.inicioMes}
                         onChange={ch("inicioMes")}
-                        className="w-full bg-gray-100 rounded-xl px-3 py-2.5 text-sm text-gray-700 outline-none appearance-none border border-transparent focus:border-yellow-400 transition-all cursor-pointer"
+                        className="w-full bg-white rounded-xl px-3 py-2.5 text-sm text-gray-700 outline-none appearance-none border border-amber-100 focus:border-yellow-400 transition-all cursor-pointer shadow-sm"
                       >
                         <option value="">Mes</option>
                         {MESES.map((m) => (
-                          <option key={m} value={m}>
-                            {m}
-                          </option>
+                          <option key={m} value={m}>{m}</option>
                         ))}
                       </select>
-                      <svg
-                        className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
+                      <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">
-                    Fecha de Entrega:
+                {/* Fecha de Entrega */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">
+                    🏁 Fecha de Entrega:
                   </label>
-                  {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="relative">
                       <select
                         value={form.finDia}
                         onChange={ch("finDia")}
-                        className="w-full bg-gray-100 rounded-xl px-3 py-2.5 text-sm text-gray-700 outline-none appearance-none border border-transparent focus:border-yellow-400 transition-all cursor-pointer"
+                        className="w-full bg-white rounded-xl px-3 py-2.5 text-sm text-gray-700 outline-none appearance-none border border-amber-100 focus:border-yellow-400 transition-all cursor-pointer shadow-sm"
                       >
                         <option value="">Día</option>
                         {DIAS.map((d) => (
-                          <option key={d} value={d}>
-                            {d}
-                          </option>
+                          <option key={d} value={d}>{d}</option>
                         ))}
                       </select>
-                      <svg
-                        className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
+                      <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </div>
                     <div className="relative">
                       <select
                         value={form.finMes}
                         onChange={ch("finMes")}
-                        className="w-full bg-gray-100 rounded-xl px-3 py-2.5 text-sm text-gray-700 outline-none appearance-none border border-transparent focus:border-yellow-400 transition-all cursor-pointer"
+                        className="w-full bg-white rounded-xl px-3 py-2.5 text-sm text-gray-700 outline-none appearance-none border border-amber-100 focus:border-yellow-400 transition-all cursor-pointer shadow-sm"
                       >
                         <option value="">Mes</option>
                         {MESES.map((m) => (
-                          <option key={m} value={m}>
-                            {m}
-                          </option>
+                          <option key={m} value={m}>{m}</option>
                         ))}
                       </select>
-                      <svg
-                        className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
+                      <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </div>
                   </div>
                 </div>
               </div>
-
-              {/* Etiquetas */}
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">
-                  Etiquetas:
-                </label>
-                <div className="bg-gray-100 rounded-xl p-3 min-h-24 flex flex-wrap gap-2 content-start">
-                  {etiquetas.map((tag) => (
-                    <span
-                      key={tag}
-                      onClick={() =>
-                        setEtiquetas(etiquetas.filter((e) => e !== tag))
-                      }
-                      className="px-3 py-1 rounded-lg text-xs font-bold text-white cursor-pointer hover:opacity-80 transition-opacity"
-                      style={{
-                        background: "linear-gradient(135deg, #c8a84b, #a8882a)",
-                      }}
-                      title="Click para quitar"
-                    >
-                      {tag} ✕
-                    </span>
-                  ))}
-                </div>
-                {/* Input nueva etiqueta */}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={nuevaEtiqueta}
-                    onChange={(e) => setNuevaEtiqueta(e.target.value)}
-                    onKeyDown={(e) =>
-                      e.key === "Enter" &&
-                      (e.preventDefault(), agregarEtiqueta())
-                    }
-                    placeholder="Nueva etiqueta..."
-                    className="flex-1 bg-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700 outline-none border border-transparent focus:border-yellow-400 transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={agregarEtiqueta}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-lg hover:scale-110 transition-transform"
-                    style={{
-                      background: "linear-gradient(135deg, #c8a84b, #a8882a)",
-                    }}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
+              {error && <p className="text-red-500 text-[10px] font-bold mt-1 text-center bg-red-50 py-1 rounded-lg border border-red-100">{error}</p>}
             </div>
 
             {/* Subtareas */}
@@ -756,12 +707,20 @@ export function TaskForm({ user, onTaskCreated }) {
 
       <ConflictModal
         conflicto={conflicto}
+        recomendado={conflicto?.recomendado}
         onResolve={resolverConflicto}
         onCancel={() => {
           setConflicto(null);
           setPendingTask(null);
         }}
         setToast={setToast}
+      />
+
+      <AlertModal
+        isOpen={alert.isOpen}
+        title={alert.title}
+        message={alert.message}
+        onConfirm={() => setAlert({ ...alert, isOpen: false })}
       />
 
       {/* Lista de tareas creadas */}
@@ -780,7 +739,10 @@ function TareasList({ tareas, setTareas, user }) {
   const [editDateForm, setEditDateForm] = useState({ dia: "", mes: "" });
   const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, type: null, tareaId: null, subtareaId: null });
   const [conflicto, setConflicto] = useState(null);
+  const [alert, setAlert] = useState({ isOpen: false, title: "", message: "" });
   const [pendingSubtaskData, setPendingSubtaskData] = useState(null);
+  const [editingHours, setEditingHours] = useState({ id: null, subId: null });
+  const [editHoursForm, setEditHoursForm] = useState("");
   const limitHours = Number(user?.settings?.limite_diario || 6);
 
   useEffect(() => {
@@ -800,10 +762,11 @@ function TareasList({ tareas, setTareas, user }) {
 
   const getColorEstado = (estado) => {
     switch (estado) {
-      case "Completada": return "#52c452";
-      case "En progreso": return "#c8a84b";
-      case "Cancelada": return "#e05252";
-      default: return "#d1d5db";
+      case "Completada": return "#52C452";
+      case "En progreso": return "#F59E0B"; // Amber-500
+      case "Cancelada": return "#EF4444"; // Red-500
+      case "Pendiente": return "#3B82F6"; // Blue-500
+      default: return "#3B82F6";
     }
   };
 
@@ -901,6 +864,19 @@ function TareasList({ tareas, setTareas, user }) {
     const totalFinal = Number(totalHorasDia) + Number(horasNuevas);
 
     if (totalFinal > limitNum) {
+      // Create a temporary hours map for calculation
+      const tempHoras = {};
+      latestTasks.forEach(t => {
+        if (t.subtareas && t.estado !== "Completada") {
+          t.subtareas.forEach(s => {
+            if (s.estado !== "Completada" && s.fecha) {
+              tempHoras[s.fecha] = Number(tempHoras[s.fecha] || 0) + Number(s.horas || 0);
+            }
+          });
+        }
+      });
+      const rec = encontrarDiaRecomendado(fecha, tempHoras, limitNum);
+
       setConflicto({
         subtarea: { nombre: nuevaSub.nombre.trim(), dia: nuevaSub.dia, mes: nuevaSub.mes, horas: horasNuevas, id: Date.now() },
         index: null,
@@ -908,7 +884,8 @@ function TareasList({ tareas, setTareas, user }) {
         exceso: totalFinal - limitNum,
         actual: totalHorasDia,
         limite: limitNum,
-        horasIntentadas: horasNuevas
+        horasIntentadas: horasNuevas,
+        recomendado: rec
       });
       setPendingSubtaskData({ type: 'add', tareaId, nuevaSub });
       return;
@@ -935,9 +912,15 @@ function TareasList({ tareas, setTareas, user }) {
 
   const agregarSubtareaExistente = async (tareaId) => {
     const nuevaSub = nuevasSubtareasPorTarea[tareaId];
-    if (nuevaSub && nuevaSub.nombre.trim() && nuevaSub.dia && nuevaSub.mes && nuevaSub.horas) {
-      checkAndAddSubtarea(tareaId, nuevaSub);
+    if (!nuevaSub || !nuevaSub.nombre.trim() || !nuevaSub.dia || !nuevaSub.mes || !nuevaSub.horas) {
+      setAlert({
+        isOpen: true,
+        title: "Datos incompletos",
+        message: "Asegúrate de llenar el nombre, fecha y horas de la subtarea."
+      });
+      return;
     }
+    checkAndAddSubtarea(tareaId, nuevaSub);
   };
 
   const confirmarEliminarTarea = (id) => {
@@ -1022,6 +1005,20 @@ function TareasList({ tareas, setTareas, user }) {
 
         const horasNuevas = parseInt(subOriginal?.horas) || 0;
         if (totalHorasDia + horasNuevas > limitHours) {
+          // Calculate temporary hours map
+          const tempHoras = {};
+          tareas.forEach(t => {
+            if (t.subtareas && t.estado !== "Completada") {
+              t.subtareas.forEach(s => {
+                if (s.id === editingDateObj.subId) return;
+                if (s.estado !== "Completada" && s.fecha) {
+                  tempHoras[s.fecha] = Number(tempHoras[s.fecha] || 0) + Number(s.horas || 0);
+                }
+              });
+            }
+          });
+          const rec = encontrarDiaRecomendado(nuevaFecha, tempHoras, limitHours);
+
           setConflicto({
             subtarea: subOriginal,
             index: null,
@@ -1029,7 +1026,8 @@ function TareasList({ tareas, setTareas, user }) {
             exceso: totalHorasDia + horasNuevas - limitHours,
             actual: totalHorasDia,
             limite: limitHours,
-            horasIntentadas: horasNuevas
+            horasIntentadas: horasNuevas,
+            recomendado: rec
           });
           setPendingSubtaskData({ type: 'edit', editingDateObj, editDateFormObj, subOriginal });
           return;
@@ -1046,6 +1044,38 @@ function TareasList({ tareas, setTareas, user }) {
       console.error(error);
       setToast({ message: "❌ Error al reprogramar fecha", type: "error" });
     }
+  };
+
+  const startEditHours = (e, tarea, subId) => {
+    e.stopPropagation();
+    const sub = tarea.subtareas.find(s => s.id === subId);
+    setEditHoursForm(sub.horas.toString());
+    setEditingHours({ id: tarea.id, subId });
+  };
+
+  const cancelEditHours = (e) => {
+    if (e) e.stopPropagation();
+    setEditingHours({ id: null, subId: null });
+    setEditHoursForm("");
+  };
+
+  const saveEditedHours = async (e) => {
+    if (e) e.stopPropagation();
+    const hNuevas = parseInt(editHoursForm);
+    if (isNaN(hNuevas) || hNuevas < 1) return;
+
+    const { id, subId } = editingHours;
+    const tarea = tareas.find(t => t.id === id);
+    const subOriginal = tarea.subtareas.find(s => s.id === subId);
+    
+    // Reutilizamos checkAndSaveEditedDate con un objeto dummy
+    const dummyDateObj = { id, type: 'subtarea', subId };
+    const [d, m] = subOriginal.fecha.split(" ");
+    const dummyDateForm = { dia: d, mes: m };
+    const overridedSub = { ...subOriginal, horas: hNuevas };
+
+    await checkAndSaveEditedDate(dummyDateObj, dummyDateForm, overridedSub);
+    setEditingHours({ id: null, subId: null });
   };
 
   const saveEditedDate = async (e) => {
@@ -1087,32 +1117,21 @@ function TareasList({ tareas, setTareas, user }) {
     }
   };
 
-  // Función para categorizar las tareas
+  // Función para categorizar las tareas de forma granular
   const categorizarTareas = (tareasLista) => {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
-    const vencidas = [];
-    const hoytareas = [];
-    const proximas = [];
+    const mañana = new Date(hoy);
+    mañana.setDate(hoy.getDate() + 1);
 
-    tareasLista.forEach(tarea => {
-      const fecha = parsearFecha(tarea.fin);
-      if (!fecha) return;
+    const categorias = {
+      vencidas: [],
+      hoy: [],
+      mañana: [],
+      proximas: {} // Agrupadas por fecha específica
+    };
 
-      const fechaCopia = new Date(fecha);
-      fechaCopia.setHours(0, 0, 0, 0);
-
-      if (fechaCopia < hoy) {
-        vencidas.push(tarea);
-      } else if (fechaCopia.getTime() === hoy.getTime()) {
-        hoytareas.push(tarea);
-      } else {
-        proximas.push(tarea);
-      }
-    });
-
-    // Ordenar cada categoría por fecha y luego por horas
     const ordenar = (arr) => arr.sort((a, b) => {
       const fechaA = parsearFecha(a.fin);
       const fechaB = parsearFecha(b.fin);
@@ -1121,17 +1140,43 @@ function TareasList({ tareas, setTareas, user }) {
           return fechaA.getTime() - fechaB.getTime();
         }
       }
-      // Si empate, ordenar por horas estimadas
       const horasA = a.subtareas?.reduce((sum, s) => Number(sum) + Number(s.horas || 0), 0) || 0;
       const horasB = b.subtareas?.reduce((sum, s) => Number(sum) + Number(s.horas || 0), 0) || 0;
       return Number(horasB) - Number(horasA);
     });
 
-    return {
-      vencidas: ordenar(vencidas),
-      hoy: ordenar(hoytareas),
-      proximas: ordenar(proximas)
-    };
+    tareasLista.forEach(tarea => {
+      const fecha = parsearFecha(tarea.fin);
+      if (!fecha) {
+        // Tareas sin fecha van al final de proximas o una categoría especial
+        const key = "Sin fecha";
+        if (!categorias.proximas[key]) categorias.proximas[key] = [];
+        categorias.proximas[key].push(tarea);
+        return;
+      }
+
+      const fechaCopia = new Date(fecha);
+      fechaCopia.setHours(0, 0, 0, 0);
+
+      if (fechaCopia < hoy) {
+        categorias.vencidas.push(tarea);
+      } else if (fechaCopia.getTime() === hoy.getTime()) {
+        categorias.hoy.push(tarea);
+      } else if (fechaCopia.getTime() === mañana.getTime()) {
+        categorias.mañana.push(tarea);
+      } else {
+        const key = tarea.fin; // Usamos el string original "dia mes" como llave
+        if (!categorias.proximas[key]) categorias.proximas[key] = [];
+        categorias.proximas[key].push(tarea);
+      }
+    });
+
+    categorias.vencidas = ordenar(categorias.vencidas);
+    categorias.hoy = ordenar(categorias.hoy);
+    categorias.mañana = ordenar(categorias.mañana);
+    
+    // Las próximas ya están agrupadas, pero podemos ordenar las llaves
+    return categorias;
   };
 
   // Función para obtener color de fondo según estado
@@ -1140,7 +1185,8 @@ function TareasList({ tareas, setTareas, user }) {
       case "Completada": return "bg-green-50 border-l-4 border-green-400";
       case "En progreso": return "bg-amber-50 border-l-4 border-amber-400";
       case "Cancelada": return "bg-red-50 border-l-4 border-red-400";
-      default: return "bg-gray-50 border-l-4 border-gray-300";
+      case "Pendiente": return "bg-blue-50 border-l-4 border-blue-400";
+      default: return "bg-blue-50 border-l-4 border-blue-400";
     }
   };
 
@@ -1178,6 +1224,7 @@ function TareasList({ tareas, setTareas, user }) {
     <div className="mt-6 max-w-2xl mx-auto flex flex-col gap-6">
       <ConflictModal
         conflicto={conflicto}
+        recomendado={conflicto?.recomendado}
         onResolve={resolverConflictoList}
         onCancel={() => {
           setConflicto(null);
@@ -1195,6 +1242,12 @@ function TareasList({ tareas, setTareas, user }) {
         onCancel={() => setConfirmDelete({ isOpen: false, type: null, tareaId: null, subtareaId: null })}
       />
       <Toast message={toast?.message} type={toast?.type} />
+      <AlertModal
+        isOpen={alert.isOpen}
+        title={alert.title}
+        message={alert.message}
+        onConfirm={() => setAlert({ ...alert, isOpen: false })}
+      />
 
       {/* Información de orden */}
       <div className="bg-blue-50 border-l-4 border-blue-400 rounded p-3">
@@ -1224,7 +1277,7 @@ function TareasList({ tareas, setTareas, user }) {
                   <div className="flex items-start gap-4">
                     <div
                       className="w-2 self-stretch rounded-full flex-shrink-0"
-                      style={{ background: COLORES_PRIORIDAD[t.prioridad] || "#c8a84b" }}
+                      style={{ background: getColorEstado(t.estado) }}
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
@@ -1330,17 +1383,6 @@ function TareasList({ tareas, setTareas, user }) {
                             📚 {t.curso}
                           </span>
                         )}
-                        {t.etiquetas?.map((tag) => (
-                          <span
-                            key={tag}
-                            className="text-xs px-2 py-0.5 rounded-lg text-white font-semibold"
-                            style={{
-                              background: "linear-gradient(135deg, #c8a84b, #a8882a)",
-                            }}
-                          >
-                            {tag}
-                          </span>
-                        ))}
                       </div>
                     </div>
                   </div>
@@ -1394,7 +1436,25 @@ function TareasList({ tareas, setTareas, user }) {
                                     <button type="button" onClick={(e) => startEditDate(e, t, sub.id)} className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 transition-opacity" title="Reprogramar subtarea">✏️</button>
                                   </span>
                                 )}
-                                <span className="text-xs text-gray-500">⏱️ {sub.horas}h</span>
+                                {editingHours.id === t.id && editingHours.subId === sub.id ? (
+                                  <div className="flex items-center gap-1 scale-95" onClick={e => e.stopPropagation()}>
+                                    <input 
+                                      type="number" 
+                                      min="1" 
+                                      value={editHoursForm} 
+                                      onChange={e => setEditHoursForm(e.target.value)} 
+                                      className="text-[10px] px-1 py-0.5 rounded border outline-none w-10 bg-white font-bold"
+                                    />
+                                    <span className="text-[10px] font-bold text-gray-500">h</span>
+                                    <button type="button" onClick={saveEditedHours} className="text-green-500 hover:text-green-600 font-bold ml-1">✓</button>
+                                    <button type="button" onClick={cancelEditHours} className="text-gray-500 hover:text-gray-600 font-bold ml-1">✕</button>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-gray-500 flex items-center gap-1 group">
+                                    ⏱️ {sub.horas}h
+                                    <button type="button" onClick={(e) => startEditHours(e, t, sub.id)} className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 transition-opacity" title="Editar horas">✏️</button>
+                                  </span>
+                                )}
                                 <select
                                   value={sub.estado}
                                   onChange={(e) => cambiarEstadoSubtarea(t.id, sub.id, e.target.value)}
@@ -1436,10 +1496,27 @@ function TareasList({ tareas, setTareas, user }) {
                                  });
                                });
                                const nextLoad = load + Number(subForm.horas || 0);
+
+                               let levelLabel = "Baja 🟢";
+                               let colorClass = "text-green-600";
+                               
+                               if (nextLoad > limitHours) {
+                                 levelLabel = "Sobrecarga 🔴";
+                                 colorClass = "text-red-600";
+                               } else if (nextLoad > limitHours * 0.85) {
+                                 levelLabel = "Alta 🟠";
+                                 colorClass = "text-orange-500";
+                               } else if (nextLoad > limitHours * 0.5) {
+                                 levelLabel = "Media 🟡";
+                                 colorClass = "text-yellow-600";
+                               }
+
                                return (
-                                 <span className={`text-[10px] font-black uppercase ml-2 ${nextLoad > limitHours ? 'text-red-500' : 'text-green-600'}`}>
-                                   Carga: {nextLoad}h / {limitHours}h
-                                 </span>
+                                 <div className="flex items-center gap-2 ml-2 border-l border-amber-200 pl-2">
+                                   <span className={`text-[10px] font-black uppercase ${colorClass}`}>
+                                     Carga: {levelLabel} ({nextLoad}h / {limitHours}h)
+                                   </span>
+                                 </div>
                                );
                             }
                             return null;
@@ -1519,11 +1596,29 @@ function TareasList({ tareas, setTareas, user }) {
         };
 
         return (
-          <>
+          <div className="flex flex-col gap-8">
             {renderCategoria("🔴 Vencidas", "⚠️", categorizado.vencidas, "red")}
             {renderCategoria("📅 Hoy", "⭐", categorizado.hoy, "blue")}
-            {renderCategoria("🔮 Próximas", "🚀", categorizado.proximas, "green")}
-            {categorizado.vencidas.length === 0 && categorizado.hoy.length === 0 && categorizado.proximas.length === 0 && (
+            {renderCategoria("🌅 Mañana", "🕒", categorizado.mañana, "amber")}
+            
+            {/* Próximas agrupadas por fecha */}
+            {Object.keys(categorizado.proximas)
+              .sort((a, b) => {
+                if (a === "Sin fecha") return 1;
+                if (b === "Sin fecha") return -1;
+                const dateA = parsearFecha(a);
+                const dateB = parsearFecha(b);
+                return (dateA?.getTime() || 0) - (dateB?.getTime() || 0);
+              })
+              .map(fechaKey => 
+                renderCategoria(`🔮 ${fechaKey}`, "🚀", categorizado.proximas[fechaKey], "indigo")
+              )
+            }
+
+            {categorizado.vencidas.length === 0 && 
+             categorizado.hoy.length === 0 && 
+             categorizado.mañana.length === 0 && 
+             Object.keys(categorizado.proximas).length === 0 && (
               <div className="flex flex-col items-center justify-center h-40 gap-2 text-gray-400">
                 <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -1533,7 +1628,7 @@ function TareasList({ tareas, setTareas, user }) {
                 </p>
               </div>
             )}
-          </>
+          </div>
         );
       })()}
     </div>

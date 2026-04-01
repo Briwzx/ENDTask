@@ -6,8 +6,12 @@ const MESES = [
 ];
 const DIAS = Array.from({ length: 31 }, (_, i) => i + 1);
 
-export function ConflictModal({ conflicto, onResolve, onCancel, setToast }) {
+export function ConflictModal({ conflicto, onResolve, onCancel, setToast, recomendado }) {
   if (!conflicto) return null;
+
+  const horasLibres = conflicto.limite - conflicto.actual;
+  const diaRec = recomendado?.dia || "";
+  const mesRec = recomendado?.mes || "";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900 bg-opacity-40 backdrop-blur-sm">
@@ -28,13 +32,15 @@ export function ConflictModal({ conflicto, onResolve, onCancel, setToast }) {
           
           {/* Opción 1: Mover */}
           <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 hover:border-yellow-300 transition-colors">
-            <p className="text-sm font-bold text-gray-700 mb-2">Opción A: Mover a otro día</p>
+            <p className="text-sm font-bold text-gray-700 mb-2">
+              Opción A: Mover a otro día {recomendado && <span className="text-xs text-yellow-600 ml-1">(Recomendado)</span>}
+            </p>
             <div className="flex gap-2">
-              <select id="modal-move-day" className="flex-1 bg-white rounded-xl px-3 py-2 text-sm text-gray-700 outline-none border border-gray-200">
+              <select id="modal-move-day" defaultValue={diaRec} className="flex-1 bg-white rounded-xl px-3 py-2 text-sm text-gray-700 outline-none border border-gray-200">
                 <option value="">Nuevo Día</option>
                 {DIAS.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
-              <select id="modal-move-month" className="flex-1 bg-white rounded-xl px-3 py-2 text-sm text-gray-700 outline-none border border-gray-200">
+              <select id="modal-move-month" defaultValue={mesRec} className="flex-1 bg-white rounded-xl px-3 py-2 text-sm text-gray-700 outline-none border border-gray-200">
                 <option value="">Mes</option>
                 {MESES.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
@@ -52,29 +58,36 @@ export function ConflictModal({ conflicto, onResolve, onCancel, setToast }) {
             </div>
           </div>
 
-          {/* Opción 2: Reducir */}
-          <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 hover:border-yellow-300 transition-colors">
-            <p className="text-sm font-bold text-gray-700 mb-2">Opción B: Reducir horas estimadas</p>
-            <div className="flex gap-2">
-              <input 
-                id="modal-reduce-hours"
-                type="number" 
-                min="1" 
-                max={conflicto.limite - conflicto.actual > 0 ? conflicto.limite - conflicto.actual : 1}
-                defaultValue={conflicto.limite - conflicto.actual > 0 ? conflicto.limite - conflicto.actual : 1}
-                className="flex-1 bg-white rounded-xl px-3 py-2 text-sm text-gray-700 outline-none border border-gray-200"
-              />
-              <button 
-                onClick={() => {
-                  const h = document.getElementById("modal-reduce-hours").value;
-                  if (h) onResolve("reducir", h);
-                }}
-                className="px-4 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-colors"
-              >
-                Aplicar
-              </button>
+          {/* Opción 2: Reducir (Solo si quedan horas libres) */}
+          {horasLibres > 0 ? (
+            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 hover:border-yellow-300 transition-colors">
+              <p className="text-sm font-bold text-gray-700 mb-2">Opción B: Reducir horas estimadas</p>
+              <div className="flex gap-2">
+                <input 
+                  id="modal-reduce-hours"
+                  type="number" 
+                  min="1" 
+                  max={horasLibres}
+                  defaultValue={horasLibres}
+                  className="flex-1 bg-white rounded-xl px-3 py-2 text-sm text-gray-700 outline-none border border-gray-200"
+                />
+                <button 
+                  onClick={() => {
+                    const h = document.getElementById("modal-reduce-hours").value;
+                    if (h) onResolve("reducir", h);
+                  }}
+                  className="px-4 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-colors"
+                >
+                  Aplicar
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
+              <p className="text-sm font-bold text-red-700">Has alcanzado el límite máximo de horas.</p>
+              <p className="text-xs text-red-600 mt-1">No puedes reducir más estas horas en este día. Debes moverla a otra fecha obligatoriamente.</p>
+            </div>
+          )}
         </div>
 
         <button

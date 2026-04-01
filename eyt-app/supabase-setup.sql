@@ -102,7 +102,6 @@ CREATE TABLE IF NOT EXISTS public.tasks (
   curso TEXT,
   inicio TEXT,
   fin TEXT,
-  etiquetas JSONB DEFAULT '[]'::jsonb,
   fecha TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()) NOT NULL,
   vence BOOLEAN DEFAULT false,
   completada BOOLEAN DEFAULT false,

@@ -118,6 +118,32 @@ export const getCurrentUserProfile = async () => {
   return data;
 };
 
+// ── Actualizar perfil completo ─────────────────────────────────────
+export const updateUserProfile = async (profileData) => {
+  const user = await getSession();
+  if (!user) throw new Error("No user logged in");
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      nombre: profileData.nombre,
+      apellido: profileData.apellido,
+      telefono: profileData.telefono,
+      email: profileData.email,
+      anio: profileData.anio
+    })
+    .eq('id', user.id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating profile:', error);
+    throw error;
+  }
+
+  return data;
+};
+
 // ── Actualizar configuración del perfil ───────────────────────────
 export const updateUserProfileSettings = async (settings) => {
   const user = await getSession();

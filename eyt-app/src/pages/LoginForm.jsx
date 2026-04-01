@@ -6,9 +6,9 @@ import { loginUser } from "../utils/storage";
 
 export function LoginForm({ showToast }) {
   const navigate = useNavigate();
-  const [email, setEmail]     = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPw, setShowPw]   = useState(false);
+  const [showPw, setShowPw] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
