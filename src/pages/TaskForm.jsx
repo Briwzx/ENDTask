@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { Toast } from "../components/Toast";
-import { getCourses, getTasks, addTask } from "../utils/storage";
-import { ConfirmModal } from "../components/ConfirmModal";
+import { getCourses, getTasks, addTask, updateTask, deleteTask } from "../utils/storage";
+import { useToast } from "../hooks/useToast";
+import { useModal } from "../hooks/useModal";
+import { translateSupabaseError } from "../utils/errors";
 import { ConflictModal } from "../components/ConflictModal";
-import { AlertModal } from "../components/AlertModal";
 
 const ESTADOS = ["Pendiente", "En progreso", "Completada", "Cancelada"];
 const PRIORIDADES = ["Baja", "Media", "Alta", "Crítica"];
@@ -54,7 +54,7 @@ function SelectField({ label, value, onChange, options }) {
         <select
           value={value}
           onChange={onChange}
-          className="w-full bg-gray-100 rounded-xl px-4 py-3 text-sm text-gray-700 outline-none appearance-none border border-transparent focus:border-yellow-400 focus:bg-white transition-all cursor-pointer"
+          className="input-standard appearance-none cursor-pointer"
         >
           <option value="">Selecciona</option>
           {options.map((o) => (
@@ -82,14 +82,14 @@ function SelectField({ label, value, onChange, options }) {
 }
 
 export function TaskForm({ user, onTaskCreated }) {
+  const { showToast } = useToast();
+  const { showModal } = useModal();
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
   const [conflicto, setConflicto] = useState(null);
   const [pendingTask, setPendingTask] = useState(null);
   const [cursos, setCursos] = useState([]);
-  const [toast, setToast] = useState(null);
   const [tareas, setTareas] = useState([]);
-  const [alert, setAlert] = useState({ isOpen: false, title: "", message: "" });
   const [form, setForm] = useState({
     nombre: "",
     descripcion: "",
@@ -131,12 +131,11 @@ export function TaskForm({ user, onTaskCreated }) {
   const validateDates = () => {
     const { inicioDia, inicioMes, finDia, finMes } = form;
     
-    // Si no se llenó nada, mostrar alerta (a menos que permitas tareas sin fecha, pero el usuario pidió alerta)
     if (!inicioDia || !inicioMes || !finDia || !finMes) {
-      setAlert({
-        isOpen: true,
+      showModal({
+        type: "warning",
         title: "Fechas incompletas",
-        message: "Por favor, completa todas las fechas de inicio y entrega para la tarea."
+        subtitle: "Por favor, completa todas las fechas de inicio y entrega para la tarea."
       });
       return false;
     }
@@ -147,10 +146,10 @@ export function TaskForm({ user, onTaskCreated }) {
     const endDay = parseInt(finDia);
 
     if (endMonth < startMonth || (endMonth === startMonth && endDay < startDay)) {
-      setAlert({
-        isOpen: true,
+      showModal({
+        type: "error",
         title: "Error en fechas",
-        message: "La fecha de entrega debe ser posterior a la fecha de inicio."
+        subtitle: "La fecha de entrega debe ser posterior a la fecha de inicio."
       });
       return false;
     }
@@ -169,8 +168,6 @@ export function TaskForm({ user, onTaskCreated }) {
     }));
   };
 
-
-
   const actualizarSubtareaForm = (index, field, value) => {
     const newForm = [...subtareasFormulario];
     newForm[index] = { ...newForm[index], [field]: value };
@@ -188,10 +185,10 @@ export function TaskForm({ user, onTaskCreated }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.nombre.trim()) {
-      setAlert({ 
-        isOpen: true, 
+      showModal({ 
+        type: "warning", 
         title: "Faltan datos", 
-        message: "Por favor, ingresa un nombre para la tarea antes de guardar." 
+        subtitle: "Por favor, ingresa un nombre para la tarea antes de guardar." 
       });
       return;
     }
@@ -206,10 +203,10 @@ export function TaskForm({ user, onTaskCreated }) {
     );
 
     if (haySubtareaIncompleta) {
-      setAlert({
-        isOpen: true,
+      showModal({
+        type: "warning",
         title: "Subtareas incompletas",
-        message: "Una o más subtareas tienen campos vacíos. Por favor, complétalas o elimínalas antes de guardar la tarea."
+        subtitle: "Una o más subtareas tienen campos vacíos. Por favor, complétalas o elimínalas antes de guardar la tarea."
       });
       return;
     }
@@ -303,8 +300,11 @@ export function TaskForm({ user, onTaskCreated }) {
 
       if (onTaskCreated) onTaskCreated(data);
 
-      setToast({ message: "✨ ¡Excelente! La tarea se ha guardado correctamente.", type: "success" });
-      setTimeout(() => setToast(null), 3000);
+      showModal({
+        type: "success",
+        title: "¡Tarea creada!",
+        subtitle: "Tu tarea fue guardada correctamente."
+      });
 
       setForm({
         nombre: "",
@@ -317,17 +317,15 @@ export function TaskForm({ user, onTaskCreated }) {
         finMes: "",
         finDia: "",
       });
-      setEtiquetas([]);
       setSubtareas([]);
       setSubtareasFormulario([]);
-      setNuevaEtiqueta("");
       setError("");
       setShowForm(false);
       setConflicto(null);
       setPendingTask(null);
     } catch (error) {
-      console.error("Error al crear la tarea:", error);
-      setToast({ message: "❌ Lo sentimos, hubo un problema al guardar la tarea. Por favor, intenta de nuevo.", type: "error" });
+      const msg = translateSupabaseError(error);
+      showToast(msg, "error");
     }
   };
 
@@ -353,20 +351,18 @@ export function TaskForm({ user, onTaskCreated }) {
 
   return (
     <div className="p-8">
-      <Toast message={toast?.message} type={toast?.type} />
       {/* Botón + */}
       <div className="flex flex-col items-center justify-center mb-6">
         <button
           onClick={() => setShowForm(!showForm)}
-          className="w-12 h-12 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-lg hover:scale-110 transition-transform"
-          style={{ background: "linear-gradient(135deg, #c8a84b, #a8882a)" }}
+          className="w-12 h-12 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-premium hover:scale-110 transition-transform bg-primary"
           title="Crear nueva tarea"
         >
           {showForm ? "−" : "+"}
         </button>
         {tareas.length === 0 && !showForm && (
-          <div className="mt-3 bg-yellow-100 text-yellow-800 px-4 py-1.5 rounded-full shadow-sm">
-            <span className="text-sm font-black tracking-widest uppercase">
+          <div className="mt-3 bg-primary-mist text-primary px-4 py-1.5 rounded-full shadow-sm border border-primary-ghost">
+            <span className="text-sm font-bold tracking-widest uppercase">
               Crear Tarea
             </span>
           </div>
@@ -381,7 +377,7 @@ export function TaskForm({ user, onTaskCreated }) {
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
-            <h2 className="font-black text-lg" style={{ color: "#c8a84b" }}>
+            <h2 className="font-bold text-xl text-primary">
               Crear nueva Tarea
             </h2>
             <button
@@ -395,7 +391,7 @@ export function TaskForm({ user, onTaskCreated }) {
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             {/* Nombre */}
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">
+              <label className="text-xs font-bold text-dark uppercase tracking-wide">
                 Nombre:
               </label>
               <input
@@ -403,20 +399,20 @@ export function TaskForm({ user, onTaskCreated }) {
                 required
                 value={form.nombre}
                 onChange={ch("nombre")}
-                className="w-full bg-gray-100 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none border border-transparent focus:border-yellow-400 focus:bg-white transition-all"
+                className="input-standard"
               />
             </div>
 
             {/* Descripción */}
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">
+              <label className="text-xs font-bold text-dark uppercase tracking-wide">
                 Descripción:
               </label>
               <textarea
                 rows={4}
                 value={form.descripcion}
                 onChange={ch("descripcion")}
-                className="w-full bg-gray-100 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none border border-transparent focus:border-yellow-400 focus:bg-white transition-all resize-none"
+                className="input-standard resize-none"
               />
             </div>
 
@@ -442,7 +438,7 @@ export function TaskForm({ user, onTaskCreated }) {
                   <select
                     value={form.curso}
                     onChange={ch("curso")}
-                    className="w-full bg-gray-100 rounded-xl px-4 py-3 text-sm text-gray-700 outline-none appearance-none border border-transparent focus:border-yellow-400 focus:bg-white transition-all cursor-pointer"
+                    className="input-standard appearance-none cursor-pointer"
                   >
                     <option value="">Sin curso</option>
                     {cursos.map((c) => (
@@ -452,7 +448,7 @@ export function TaskForm({ user, onTaskCreated }) {
                     ))}
                   </select>
                   <svg
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -469,20 +465,17 @@ export function TaskForm({ user, onTaskCreated }) {
             </div>
 
             {/* Sección de Fechas */}
-            <div className="bg-amber-50/30 p-5 rounded-2xl border border-amber-100/50 flex flex-col gap-4">
-              <div className="flex items-center justify-between border-b border-amber-200 pb-2">
-                <span className="text-xs font-black text-gray-700 uppercase tracking-widest flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+            <div className="bg-primary-mist p-5 rounded-2xl border border-primary-ghost flex flex-col gap-4">
+              <div className="flex items-center justify-between border-b border-primary-pale pb-2">
+                <span className="text-xs font-bold text-primary uppercase tracking-widest flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-primary"></span>
                   Planificación de Fechas
                 </span>
 
                 <button
                   type="button"
                   onClick={setDesdeHoy}
-                  className="text-[10px] font-black px-3 py-1.5 rounded-xl text-white uppercase tracking-widest hover:scale-105 transition-transform"
-                  style={{
-                    background: "linear-gradient(135deg, #c8a84b, #a8882a)",
-                  }}
+                  className="text-[10px] font-bold px-3 py-1.5 rounded-lg text-white uppercase tracking-widest hover:scale-105 transition-all bg-primary shadow-sm"
                 >
                   Establecer desde hoy
                 </button>
@@ -499,14 +492,14 @@ export function TaskForm({ user, onTaskCreated }) {
                       <select
                         value={form.inicioDia}
                         onChange={ch("inicioDia")}
-                        className="w-full bg-white rounded-xl px-3 py-2.5 text-sm text-gray-700 outline-none appearance-none border border-amber-100 focus:border-yellow-400 transition-all cursor-pointer shadow-sm"
+                        className="w-full bg-white rounded-lg px-3 py-2 text-sm text-dark outline-none appearance-none border border-border focus:border-primary-light transition-all cursor-pointer shadow-sm"
                       >
                         <option value="">Día</option>
                         {DIAS.map((d) => (
                           <option key={d} value={d}>{d}</option>
                         ))}
                       </select>
-                      <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </div>
@@ -514,14 +507,14 @@ export function TaskForm({ user, onTaskCreated }) {
                       <select
                         value={form.inicioMes}
                         onChange={ch("inicioMes")}
-                        className="w-full bg-white rounded-xl px-3 py-2.5 text-sm text-gray-700 outline-none appearance-none border border-amber-100 focus:border-yellow-400 transition-all cursor-pointer shadow-sm"
+                        className="w-full bg-white rounded-lg px-3 py-2 text-sm text-dark outline-none appearance-none border border-border focus:border-primary-light transition-all cursor-pointer shadow-sm"
                       >
                         <option value="">Mes</option>
                         {MESES.map((m) => (
                           <option key={m} value={m}>{m}</option>
                         ))}
                       </select>
-                      <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </div>
@@ -538,14 +531,14 @@ export function TaskForm({ user, onTaskCreated }) {
                       <select
                         value={form.finDia}
                         onChange={ch("finDia")}
-                        className="w-full bg-white rounded-xl px-3 py-2.5 text-sm text-gray-700 outline-none appearance-none border border-amber-100 focus:border-yellow-400 transition-all cursor-pointer shadow-sm"
+                        className="w-full bg-white rounded-lg px-3 py-2 text-sm text-dark outline-none appearance-none border border-border focus:border-primary-light transition-all cursor-pointer shadow-sm"
                       >
                         <option value="">Día</option>
                         {DIAS.map((d) => (
                           <option key={d} value={d}>{d}</option>
                         ))}
                       </select>
-                      <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </div>
@@ -553,14 +546,14 @@ export function TaskForm({ user, onTaskCreated }) {
                       <select
                         value={form.finMes}
                         onChange={ch("finMes")}
-                        className="w-full bg-white rounded-xl px-3 py-2.5 text-sm text-gray-700 outline-none appearance-none border border-amber-100 focus:border-yellow-400 transition-all cursor-pointer shadow-sm"
+                        className="w-full bg-white rounded-lg px-3 py-2 text-sm text-dark outline-none appearance-none border border-border focus:border-primary-light transition-all cursor-pointer shadow-sm"
                       >
                         <option value="">Mes</option>
                         {MESES.map((m) => (
                           <option key={m} value={m}>{m}</option>
                         ))}
                       </select>
-                      <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </div>
@@ -600,13 +593,13 @@ export function TaskForm({ user, onTaskCreated }) {
                         placeholder="Nombre subtarea"
                         value={sub.nombre}
                         onChange={(e) => actualizarSubtareaForm(idx, "nombre", e.target.value)}
-                        className="col-span-2 bg-gray-100 rounded-xl px-3 py-2 text-sm text-gray-700 outline-none border border-transparent focus:border-yellow-400 transition-all"
+                        className="col-span-2 input-standard !py-2"
                       />
                       <div className="relative">
                         <select
                           value={sub.dia}
                           onChange={(e) => actualizarSubtareaForm(idx, "dia", e.target.value)}
-                          className="w-full bg-gray-100 rounded-xl px-3 py-2 text-sm text-gray-700 outline-none appearance-none border border-transparent focus:border-yellow-400 transition-all cursor-pointer"
+                          className="w-full bg-bg rounded-lg px-3 py-2 text-sm text-dark outline-none appearance-none border border-border focus:border-primary-light transition-all cursor-pointer"
                         >
                           <option value="">Día</option>
                           {DIAS.map((d) => (
@@ -616,7 +609,7 @@ export function TaskForm({ user, onTaskCreated }) {
                           ))}
                         </select>
                         <svg
-                          className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none"
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -633,7 +626,7 @@ export function TaskForm({ user, onTaskCreated }) {
                         <select
                           value={sub.mes}
                           onChange={(e) => actualizarSubtareaForm(idx, "mes", e.target.value)}
-                          className="w-full bg-gray-100 rounded-xl px-3 py-2 text-sm text-gray-700 outline-none appearance-none border border-transparent focus:border-yellow-400 transition-all cursor-pointer"
+                          className="w-full bg-bg rounded-lg px-3 py-2 text-sm text-dark outline-none appearance-none border border-border focus:border-primary-light transition-all cursor-pointer"
                         >
                           <option value="">Mes</option>
                           {MESES.map((m) => (
@@ -643,7 +636,7 @@ export function TaskForm({ user, onTaskCreated }) {
                           ))}
                         </select>
                         <svg
-                          className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none"
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -662,7 +655,7 @@ export function TaskForm({ user, onTaskCreated }) {
                         placeholder="Horas"
                         value={sub.horas}
                         onChange={(e) => actualizarSubtareaForm(idx, "horas", e.target.value)}
-                        className="bg-gray-100 rounded-xl px-3 py-2 text-sm text-gray-700 outline-none border border-transparent focus:border-yellow-400 transition-all"
+                        className="w-full bg-bg rounded-lg px-3 py-2 text-sm text-dark outline-none border border-border focus:border-primary-light transition-all shadow-inner"
                       />
                       <div className="flex gap-1 justify-end items-center">
                         <button
@@ -680,10 +673,7 @@ export function TaskForm({ user, onTaskCreated }) {
                 <button
                   type="button"
                   onClick={() => setSubtareasFormulario([...subtareasFormulario, { nombre: "", dia: "", mes: "", horas: "" }])}
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-xl hover:scale-110 transition-transform mx-auto"
-                  style={{
-                    background: "linear-gradient(135deg, #c8a84b, #a8882a)",
-                  }}
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-xl hover:scale-110 transition-transform mx-auto bg-primary shadow-premium"
                   title="Agregar otra subtarea vacía"
                 >
                   +
@@ -694,10 +684,7 @@ export function TaskForm({ user, onTaskCreated }) {
             {/* Botón guardar */}
             <button
               type="submit"
-              className="mt-2 w-full py-3.5 rounded-xl text-sm font-bold text-white tracking-widest shadow-md active:scale-95 transition-transform"
-              style={{
-                background: "linear-gradient(135deg, #c8a84b, #a8882a)",
-              }}
+              className="btn-primary"
             >
               GUARDAR TAREA
             </button>
@@ -713,14 +700,7 @@ export function TaskForm({ user, onTaskCreated }) {
           setConflicto(null);
           setPendingTask(null);
         }}
-        setToast={setToast}
-      />
-
-      <AlertModal
-        isOpen={alert.isOpen}
-        title={alert.title}
-        message={alert.message}
-        onConfirm={() => setAlert({ ...alert, isOpen: false })}
+        showToast={showToast}
       />
 
       {/* Lista de tareas creadas */}
@@ -731,23 +711,20 @@ export function TaskForm({ user, onTaskCreated }) {
 
 // ── Lista de tareas guardadas ─────────────────────────────────────
 function TareasList({ tareas, setTareas, user }) {
+  const { showToast } = useToast();
+  const { showModal } = useModal();
   const [expanded, setExpanded] = useState({});
   const [nuevasSubtareasPorTarea, setNuevasSubtareasPorTarea] = useState({});
-  const [toast, setToast] = useState(null);
   const [cursos, setCursos] = useState([]);
   const [editingDate, setEditingDate] = useState({ id: null, type: null, subId: null });
   const [editDateForm, setEditDateForm] = useState({ dia: "", mes: "" });
-  const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, type: null, tareaId: null, subtareaId: null });
   const [conflicto, setConflicto] = useState(null);
-  const [alert, setAlert] = useState({ isOpen: false, title: "", message: "" });
   const [pendingSubtaskData, setPendingSubtaskData] = useState(null);
   const [editingHours, setEditingHours] = useState({ id: null, subId: null });
   const [editHoursForm, setEditHoursForm] = useState("");
   const limitHours = Number(user?.settings?.limite_diario || 6);
 
   useEffect(() => {
-    // We can also fetch courses here or receive them as props, but since they may change we re-fetch them.
-    // In a real app we'd likely use React Context, but we fetch them to keep it simple.
     import("../utils/storage").then(m => m.getCourses().then(setCursos));
   }, []);
 
@@ -762,10 +739,10 @@ function TareasList({ tareas, setTareas, user }) {
 
   const getColorEstado = (estado) => {
     switch (estado) {
-      case "Completada": return "#52C452";
-      case "En progreso": return "#F59E0B"; // Amber-500
-      case "Cancelada": return "#EF4444"; // Red-500
-      case "Pendiente": return "#3B82F6"; // Blue-500
+      case "Completada": return "#10B981";
+      case "En progreso": return "#F59E0B";
+      case "Cancelada": return "#EF4444";
+      case "Pendiente": return "#3B82F6";
       default: return "#3B82F6";
     }
   };
@@ -786,11 +763,10 @@ function TareasList({ tareas, setTareas, user }) {
       const nuevasTareas = tareas.map(t => t.id === id ? { ...t, estado: nuevoEstado, subtareas: nuevasSubtareas } : t);
       setTareas(nuevasTareas);
       const emojis = { "Completada": "✅", "En progreso": "⚙️", "Cancelada": "❌", "Pendiente": "⏳" };
-      setToast({ message: `${emojis[nuevoEstado]} Estado actualizado a: ${nuevoEstado}`, type: "success" });
-      setTimeout(() => setToast(null), 2500);
+      showToast(`${emojis[nuevoEstado]} Estado actualizado: ${nuevoEstado}`, "success");
     } catch (error) {
-      console.error(error);
-      setToast({ message: "❌ No pudimos actualizar la tarea. Por favor, verifica tu conexión.", type: "error" });
+      const msg = translateSupabaseError(error);
+      showToast(msg, "error");
     }
   };
 
@@ -805,15 +781,22 @@ function TareasList({ tareas, setTareas, user }) {
       const nuevasTareas = tareas.map(t => t.id === tareaId ? { ...t, subtareas: nuevasSubtareas } : t);
       setTareas(nuevasTareas);
       const emojis = { "Completada": "✅", "En progreso": "⚙️", "Cancelada": "❌", "Pendiente": "⏳" };
-      setToast({ message: `${emojis[nuevoEstado]} Subtarea: ${nuevoEstado}`, type: "success" });
-      setTimeout(() => setToast(null), 2500);
+      showToast(`${emojis[nuevoEstado]} Subtarea: ${nuevoEstado}`, "success");
     } catch (error) {
-      console.error(error);
+      const msg = translateSupabaseError(error);
+      showToast(msg, "error");
     }
   };
 
   const confirmarEliminarSubtarea = (tareaId, subtareaId) => {
-    setConfirmDelete({ isOpen: true, type: 'subtarea', tareaId, subtareaId });
+    showModal({
+      type: "warning",
+      title: "¿Eliminar subtarea?",
+      subtitle: "Esta acción no se puede deshacer.",
+      showCancelButton: true,
+      confirmText: "ELIMINAR",
+      onConfirm: () => ejecutarEliminarSubtarea(tareaId, subtareaId)
+    });
   };
 
   const ejecutarEliminarSubtarea = async (tareaId, subtareaId) => {
@@ -826,10 +809,10 @@ function TareasList({ tareas, setTareas, user }) {
 
       const nuevasTareas = tareas.map(t => t.id === tareaId ? { ...t, subtareas: nuevasSubtareas } : t);
       setTareas(nuevasTareas);
-      setToast({ message: "❌ Subtarea eliminada.", type: "success" });
-      setTimeout(() => setToast(null), 2500);
+      showToast("❌ Subtarea eliminada", "success");
     } catch (error) {
-      console.error(error);
+      const msg = translateSupabaseError(error);
+      showToast(msg, "error");
     }
   };
 
@@ -837,7 +820,6 @@ function TareasList({ tareas, setTareas, user }) {
     const fecha = `${nuevaSub.dia} ${nuevaSub.mes}`;
     const horasNuevas = parseInt(nuevaSub.horas) || 0;
 
-    // Forzar re-obtención para evitar estado local desactualizado
     let latestTasks = tareas;
     let latestLimit = limitHours;
     try {
@@ -849,7 +831,6 @@ function TareasList({ tareas, setTareas, user }) {
 
     const limitNum = latestLimit;
 
-    // Validación de sobrecarga
     let totalHorasDia = 0;
     latestTasks.forEach(t => {
       if (t.subtareas && t.estado !== "Completada") {
@@ -864,7 +845,6 @@ function TareasList({ tareas, setTareas, user }) {
     const totalFinal = Number(totalHorasDia) + Number(horasNuevas);
 
     if (totalFinal > limitNum) {
-      // Create a temporary hours map for calculation
       const tempHoras = {};
       latestTasks.forEach(t => {
         if (t.subtareas && t.estado !== "Completada") {
@@ -903,20 +883,20 @@ function TareasList({ tareas, setTareas, user }) {
       const nuevasTareas = tareas.map(t => t.id === tareaId ? { ...t, subtareas: nuevasSubtareas } : t);
       setTareas(nuevasTareas);
       setNuevasSubtareasPorTarea(prev => ({ ...prev, [tareaId]: { nombre: "", dia: "", mes: "", horas: "" } }));
-      setToast({ message: "➕ Subtarea agregada exitosamente!", type: "success" });
-      setTimeout(() => setToast(null), 2500);
+      showToast("➕ Subtarea agregada!", "success");
     } catch (error) {
-      console.error(error);
+      const msg = translateSupabaseError(error);
+      showToast(msg, "error");
     }
   };
 
   const agregarSubtareaExistente = async (tareaId) => {
     const nuevaSub = nuevasSubtareasPorTarea[tareaId];
     if (!nuevaSub || !nuevaSub.nombre.trim() || !nuevaSub.dia || !nuevaSub.mes || !nuevaSub.horas) {
-      setAlert({
-        isOpen: true,
+      showModal({
+        type: "warning",
         title: "Datos incompletos",
-        message: "Asegúrate de llenar el nombre, fecha y horas de la subtarea."
+        subtitle: "Asegúrate de llenar el nombre, fecha y horas de la subtarea."
       });
       return;
     }
@@ -924,7 +904,14 @@ function TareasList({ tareas, setTareas, user }) {
   };
 
   const confirmarEliminarTarea = (id) => {
-    setConfirmDelete({ isOpen: true, type: 'tarea', tareaId: id, subtareaId: null });
+    showModal({
+      type: "warning",
+      title: "¿Eliminar tarea?",
+      subtitle: "Se borrarán todas sus subtareas. Esta acción es permanente.",
+      showCancelButton: true,
+      confirmText: "ELIMINAR",
+      onConfirm: () => ejecutarEliminarTarea(id)
+    });
   };
 
   const ejecutarEliminarTarea = async (id) => {
@@ -932,20 +919,11 @@ function TareasList({ tareas, setTareas, user }) {
       await import("../utils/storage").then(m => m.deleteTask(id));
       const nuevasTareas = tareas.filter(t => t.id !== id);
       setTareas(nuevasTareas);
-      setToast({ message: "🗑️ Tarea eliminada correctamente.", type: "success" });
-      setTimeout(() => setToast(null), 2500);
+      showToast("🗑️ Tarea eliminada correctamente.", "success");
     } catch (error) {
-      console.error(error);
+      const msg = translateSupabaseError(error);
+      showToast(msg, "error");
     }
-  };
-
-  const handleConfirmDelete = () => {
-    if (confirmDelete.type === 'tarea') {
-      ejecutarEliminarTarea(confirmDelete.tareaId);
-    } else if (confirmDelete.type === 'subtarea') {
-      ejecutarEliminarSubtarea(confirmDelete.tareaId, confirmDelete.subtareaId);
-    }
-    setConfirmDelete({ isOpen: false, type: null, tareaId: null, subtareaId: null });
   };
 
   const actualizarNuevaSubtarea = (tareaId, field, value) => {
@@ -955,7 +933,6 @@ function TareasList({ tareas, setTareas, user }) {
     }));
   };
 
-  // Función para convertir "día mes" a Date objeto
   const parsearFecha = (fechaStr) => {
     if (!fechaStr || fechaStr === "—") return null;
     const [dia, mes] = fechaStr.split(" ");
@@ -984,17 +961,15 @@ function TareasList({ tareas, setTareas, user }) {
       if (editingDateObj.type === 'tarea') {
         await import("../utils/storage").then(m => m.updateTask(editingDateObj.id, { fin: nuevaFecha }));
         setTareas(tareas.map(t => t.id === editingDateObj.id ? { ...t, fin: nuevaFecha } : t));
-        setToast({ message: "📅 Fecha de tarea reprogramada exitosamente", type: "success" });
+        showToast("📅 Tarea reprogramada exitosamente", "success");
       } else {
         const tarea = tareas.find(t => t.id === editingDateObj.id);
         const subOriginal = overridedSub || tarea.subtareas.find(s => s.id === editingDateObj.subId);
 
-        // Validación de sobrecarga para cambio de fecha de subtarea
         let totalHorasDia = 0;
         tareas.forEach(t => {
           if (t.subtareas && t.estado !== "Completada") {
             t.subtareas.forEach(sub => {
-              // No sumar la propia subtarea siendo editada
               if (sub.id === editingDateObj.subId) return;
               if (sub.estado !== "Completada" && sub.fecha === nuevaFecha) {
                 totalHorasDia += Number(sub.horas || 0);
@@ -1005,7 +980,6 @@ function TareasList({ tareas, setTareas, user }) {
 
         const horasNuevas = parseInt(subOriginal?.horas) || 0;
         if (totalHorasDia + horasNuevas > limitHours) {
-          // Calculate temporary hours map
           const tempHoras = {};
           tareas.forEach(t => {
             if (t.subtareas && t.estado !== "Completada") {
@@ -1036,13 +1010,12 @@ function TareasList({ tareas, setTareas, user }) {
         const nuevasSubtareas = tarea.subtareas.map(s => s.id === editingDateObj.subId ? { ...s, fecha: nuevaFecha, horas: horasNuevas } : s);
         await import("../utils/storage").then(m => m.updateTask(editingDateObj.id, { subtareas: nuevasSubtareas }));
         setTareas(tareas.map(t => t.id === editingDateObj.id ? { ...t, subtareas: nuevasSubtareas } : t));
-        setToast({ message: "📅 Fecha de subtarea reprogramada exitosamente", type: "success" });
+        showToast("📅 Subtarea reprogramada exitosamente", "success");
       }
-      setTimeout(() => setToast(null), 2500);
       setEditingDate({ id: null, type: null, subId: null });
     } catch (error) {
-      console.error(error);
-      setToast({ message: "❌ Error al reprogramar fecha", type: "error" });
+      const msg = translateSupabaseError(error);
+      showToast(msg, "error");
     }
   };
 
@@ -1068,7 +1041,6 @@ function TareasList({ tareas, setTareas, user }) {
     const tarea = tareas.find(t => t.id === id);
     const subOriginal = tarea.subtareas.find(s => s.id === subId);
     
-    // Reutilizamos checkAndSaveEditedDate con un objeto dummy
     const dummyDateObj = { id, type: 'subtarea', subId };
     const [d, m] = subOriginal.fecha.split(" ");
     const dummyDateForm = { dia: d, mes: m };
@@ -1117,7 +1089,6 @@ function TareasList({ tareas, setTareas, user }) {
     }
   };
 
-  // Función para categorizar las tareas de forma granular
   const categorizarTareas = (tareasLista) => {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
@@ -1129,7 +1100,7 @@ function TareasList({ tareas, setTareas, user }) {
       vencidas: [],
       hoy: [],
       mañana: [],
-      proximas: {} // Agrupadas por fecha específica
+      proximas: {}
     };
 
     const ordenar = (arr) => arr.sort((a, b) => {
@@ -1148,7 +1119,6 @@ function TareasList({ tareas, setTareas, user }) {
     tareasLista.forEach(tarea => {
       const fecha = parsearFecha(tarea.fin);
       if (!fecha) {
-        // Tareas sin fecha van al final de proximas o una categoría especial
         const key = "Sin fecha";
         if (!categorias.proximas[key]) categorias.proximas[key] = [];
         categorias.proximas[key].push(tarea);
@@ -1165,7 +1135,7 @@ function TareasList({ tareas, setTareas, user }) {
       } else if (fechaCopia.getTime() === mañana.getTime()) {
         categorias.mañana.push(tarea);
       } else {
-        const key = tarea.fin; // Usamos el string original "dia mes" como llave
+        const key = tarea.fin;
         if (!categorias.proximas[key]) categorias.proximas[key] = [];
         categorias.proximas[key].push(tarea);
       }
@@ -1175,11 +1145,9 @@ function TareasList({ tareas, setTareas, user }) {
     categorias.hoy = ordenar(categorias.hoy);
     categorias.mañana = ordenar(categorias.mañana);
     
-    // Las próximas ya están agrupadas, pero podemos ordenar las llaves
     return categorias;
   };
 
-  // Función para obtener color de fondo según estado
   const getBgColorEstado = (estado) => {
     switch (estado) {
       case "Completada": return "bg-green-50 border-l-4 border-green-400";
@@ -1213,13 +1181,6 @@ function TareasList({ tareas, setTareas, user }) {
     );
   }
 
-  const COLORES_PRIORIDAD = {
-    Crítica: "#e05252",
-    Alta: "#e09052",
-    Media: "#c8a84b",
-    Baja: "#52a8e0",
-  };
-
   return (
     <div className="mt-6 max-w-2xl mx-auto flex flex-col gap-6">
       <ConflictModal
@@ -1230,23 +1191,7 @@ function TareasList({ tareas, setTareas, user }) {
           setConflicto(null);
           setPendingSubtaskData(null);
         }}
-        setToast={setToast}
-      />
-      <ConfirmModal
-        isOpen={confirmDelete.isOpen}
-        title={confirmDelete.type === 'tarea' ? 'Eliminar Tarea' : 'Eliminar Subtarea'}
-        message={confirmDelete.type === 'tarea'
-          ? "¿Estás seguro de que deseas eliminar esta tarea completa? Todas sus subtareas también se borrarán."
-          : "¿Estás seguro de que deseas eliminar esta subtarea? Esta acción no se puede deshacer."}
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setConfirmDelete({ isOpen: false, type: null, tareaId: null, subtareaId: null })}
-      />
-      <Toast message={toast?.message} type={toast?.type} />
-      <AlertModal
-        isOpen={alert.isOpen}
-        title={alert.title}
-        message={alert.message}
-        onConfirm={() => setAlert({ ...alert, isOpen: false })}
+        showToast={showToast}
       />
 
       {/* Información de orden */}
@@ -1347,7 +1292,7 @@ function TareasList({ tareas, setTareas, user }) {
                             <div className="flex-1 bg-gray-200 rounded-full h-2.5 overflow-hidden">
                               <div
                                 className="h-full rounded-full transition-all duration-500"
-                                style={{ width: `${percent}%`, background: "linear-gradient(135deg, #52c452, #3da13d)" }}
+                                style={{ width: `${percent}%`, background: "var(--color-primary)" }}
                               ></div>
                             </div>
                             <span className="text-xs font-black text-green-600">{percent}%</span>
@@ -1481,9 +1426,9 @@ function TareasList({ tareas, setTareas, user }) {
                         </>
                       )}
                       <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">Agregar subtarea:</p>
-                        <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 rounded-full border border-amber-100">
-                          <span className="text-[10px] font-black text-amber-600 uppercase">Límite Diario: {limitHours}h</span>
+                        <p className="text-xs font-bold text-dark uppercase tracking-wide">Agregar subtarea:</p>
+                        <div className="flex items-center gap-2 px-3 py-1 bg-primary-mist rounded-full border border-primary-ghost">
+                          <span className="text-[10px] font-bold text-primary uppercase tracking-wider">L\xedmite Diario: {limitHours}h</span>
                           {/* Pequeño calculador de carga en tiempo real */}
                           {(() => {
                             const subForm = nuevasSubtareasPorTarea[t.id];
@@ -1512,8 +1457,8 @@ function TareasList({ tareas, setTareas, user }) {
                                }
 
                                return (
-                                 <div className="flex items-center gap-2 ml-2 border-l border-amber-200 pl-2">
-                                   <span className={`text-[10px] font-black uppercase ${colorClass}`}>
+                                 <div className="flex items-center gap-2 ml-2 border-l border-primary-pale pl-2">
+                                   <span className={`text-[10px] font-bold uppercase tracking-wide ${colorClass}`}>
                                      Carga: {levelLabel} ({nextLoad}h / {limitHours}h)
                                    </span>
                                  </div>
@@ -1530,21 +1475,21 @@ function TareasList({ tareas, setTareas, user }) {
                           value={nuevasSubtareasPorTarea[t.id]?.nombre || ""}
                           onChange={(e) => actualizarNuevaSubtarea(t.id, "nombre", e.target.value)}
                           onClick={(e) => e.stopPropagation()}
-                          className="col-span-2 bg-gray-100 rounded-lg px-2 py-1.5 text-xs text-gray-700 outline-none border border-transparent focus:border-yellow-400 transition-all"
+                          className="col-span-2 bg-white rounded-lg px-2 py-1.5 text-xs text-dark outline-none border border-border focus:border-primary-light transition-all shadow-sm"
                         />
                         <div className="relative">
                           <select
                             value={nuevasSubtareasPorTarea[t.id]?.dia || ""}
                             onChange={(e) => actualizarNuevaSubtarea(t.id, "dia", e.target.value)}
                             onClick={(e) => e.stopPropagation()}
-                            className="w-full bg-gray-100 rounded-lg px-2 py-1.5 text-xs text-gray-700 outline-none appearance-none border border-transparent focus:border-yellow-400 transition-all cursor-pointer"
+                            className="w-full bg-white rounded-lg px-2 py-1.5 text-xs text-dark outline-none appearance-none border border-border focus:border-primary-light transition-all cursor-pointer shadow-sm"
                           >
                             <option value="">Día</option>
                             {DIAS.map((d) => (
                               <option key={d} value={d}>{d}</option>
                             ))}
                           </select>
-                          <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                           </svg>
                         </div>
@@ -1553,14 +1498,14 @@ function TareasList({ tareas, setTareas, user }) {
                             value={nuevasSubtareasPorTarea[t.id]?.mes || ""}
                             onChange={(e) => actualizarNuevaSubtarea(t.id, "mes", e.target.value)}
                             onClick={(e) => e.stopPropagation()}
-                            className="w-full bg-gray-100 rounded-lg px-2 py-1.5 text-xs text-gray-700 outline-none appearance-none border border-transparent focus:border-yellow-400 transition-all cursor-pointer"
+                            className="w-full bg-white rounded-lg px-2 py-1.5 text-xs text-dark outline-none appearance-none border border-border focus:border-primary-light transition-all cursor-pointer shadow-sm"
                           >
                             <option value="">Mes</option>
                             {MESES.map((m) => (
                               <option key={m} value={m}>{m}</option>
                             ))}
                           </select>
-                          <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                           </svg>
                         </div>
@@ -1570,7 +1515,7 @@ function TareasList({ tareas, setTareas, user }) {
                           value={nuevasSubtareasPorTarea[t.id]?.horas || ""}
                           onChange={(e) => actualizarNuevaSubtarea(t.id, "horas", e.target.value)}
                           onClick={(e) => e.stopPropagation()}
-                          className="bg-gray-100 rounded-lg px-2 py-1.5 text-xs text-gray-700 outline-none border border-transparent focus:border-yellow-400 transition-all"
+                          className="bg-white rounded-lg px-2 py-1.5 text-xs text-dark outline-none border border-border focus:border-primary-light transition-all shadow-sm"
                         />
                         <div className="flex gap-1 justify-end">
                           <button
@@ -1579,8 +1524,7 @@ function TareasList({ tareas, setTareas, user }) {
                               e.stopPropagation();
                               agregarSubtareaExistente(t.id);
                             }}
-                            className="w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-sm hover:scale-110 transition-transform"
-                            style={{ background: "linear-gradient(135deg, #c8a84b, #a8882a)" }}
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-sm hover:scale-110 transition-transform bg-primary shadow-sm"
                             title="Agregar subtarea"
                           >
                             +

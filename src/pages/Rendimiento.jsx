@@ -2,18 +2,18 @@ import { useState, useEffect, useRef } from "react";
 
 // ── Íconos de las tarjetas stat ───────────────────────────────────
 const IconColaborador = () => (
-  <svg className="w-8 h-8 text-gray-900" fill="currentColor" viewBox="0 0 24 24">
+  <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
     <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
   </svg>
 );
 const IconDepartamento = () => (
-  <svg className="w-8 h-8 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
       d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 13l4.553 2.276A1 1 0 0021 21.382V10.618a1 1 0 00-.553-.894L15 7m0 13V7m0 0L9 4" />
   </svg>
 );
 const IconTareas = () => (
-  <svg className="w-8 h-8 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
       d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
   </svg>
@@ -177,12 +177,19 @@ export function Rendimiento({ user }) {
       <div className="grid grid-cols-3 gap-4">
         {stats.map((s) => (
           <div key={s.label}
-            className="rounded-2xl p-5 flex flex-col items-center gap-2 shadow-md"
-            style={{ background: "linear-gradient(135deg, #c8a84b, #a8882a)" }}>
-            {s.icon}
-            <p className="text-sm font-bold text-gray-900 text-center">
-              {s.label}: <span className="font-black">{s.value}</span>
-            </p>
+            className="rounded-card p-6 flex flex-col items-center gap-3 shadow-premium bg-primary text-white border border-primary-light"
+          >
+            <div className="bg-white/20 p-3 rounded-2xl">
+              {s.icon}
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">
+                {s.label}
+              </p>
+              <p className="text-2xl font-black">
+                {s.value}
+              </p>
+            </div>
           </div>
         ))}
       </div>
@@ -194,11 +201,11 @@ export function Rendimiento({ user }) {
           <span className="text-xs font-bold text-gray-600 uppercase tracking-wide whitespace-nowrap">Colaborador:</span>
           <div className="relative flex-1">
             <select value={filtroColaborador} onChange={(e) => setFiltroColaborador(e.target.value)}
-              className="w-full bg-gray-100 rounded-xl px-3 py-2 text-sm text-gray-700 outline-none appearance-none border border-transparent focus:border-yellow-400 transition-all cursor-pointer">
+              className="w-full bg-white rounded-lg px-3 py-2 text-sm text-dark outline-none appearance-none border border-border focus:border-primary-light transition-all cursor-pointer shadow-sm">
               <option value="">Todos</option>
-              <option value={user?.nombre}>{user?.nombre} {user?.apellido}</option>
+              <option value={user?.nombre_completo}>{user?.nombre_completo}</option>
             </select>
-            <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </div>
@@ -209,14 +216,14 @@ export function Rendimiento({ user }) {
           <span className="text-xs font-bold text-gray-600 uppercase tracking-wide whitespace-nowrap">Departamento:</span>
           <div className="relative flex-1">
             <select value={filtroDepartamento} onChange={(e) => setFiltroDepartamento(e.target.value)}
-              className="w-full bg-gray-100 rounded-xl px-3 py-2 text-sm text-gray-700 outline-none appearance-none border border-transparent focus:border-yellow-400 transition-all cursor-pointer">
+              className="w-full bg-white rounded-lg px-3 py-2 text-sm text-dark outline-none appearance-none border border-border focus:border-primary-light transition-all cursor-pointer shadow-sm">
               <option value="">Todos</option>
               <option value="general">General</option>
             </select>
-            <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
-          </div>
+         </div>
         </div>
 
         {/* Fecha */}
@@ -226,7 +233,7 @@ export function Rendimiento({ user }) {
             type="date"
             value={filtroFecha}
             onChange={(e) => setFiltroFecha(e.target.value)}
-            className="bg-gray-100 rounded-xl px-3 py-2 text-sm text-gray-700 outline-none border border-transparent focus:border-yellow-400 transition-all"
+            className="bg-white rounded-lg px-3 py-2 text-sm text-dark outline-none border border-border focus:border-primary-light shadow-sm"
           />
           <button className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold"
             style={{ background: "#22c55e" }}>
@@ -258,12 +265,12 @@ export function Rendimiento({ user }) {
         {[
           { label: "Completadas", value: completadas, color: "#22c55e" },
           { label: "En Progreso", value: enProgreso, color: "#3b8de0" },
-          { label: "Pendientes", value: pendientes, color: "#c8a84b" },
-          { label: "Por Vencer", value: tareas.filter(t => t.vence).length, color: "#e05252" },
+          { label: "Pendientes", value: pendientes, color: "#3B82F6" },
+          { label: "Por Vencer", value: tareas.filter(t => t.vence).length, color: "#EF4444" },
         ].map((item) => (
-          <div key={item.label} className="bg-white rounded-2xl p-4 flex flex-col items-center gap-1 shadow-sm">
+          <div key={item.label} className="bg-surface rounded-xl p-4 flex flex-col items-center gap-1 shadow-sm border border-border">
             <span className="text-2xl font-black" style={{ color: item.color }}>{item.value}</span>
-            <span className="text-xs font-semibold text-gray-500 text-center">{item.label}</span>
+            <span className="text-[10px] font-bold text-muted uppercase tracking-wider text-center">{item.label}</span>
           </div>
         ))}
       </div>

@@ -4,6 +4,9 @@ import { AuthScreen } from "./pages/AuthScreen";
 import { Dashboard } from "./pages/Dashboard";
 import { PrivateRoute } from "./components/PrivateRoute";
 import { getSession } from "./utils/storage";
+import { NotificationProvider } from "./context/NotificationContext";
+import { ToastNotification } from "./components/ToastNotification";
+import { SuccessModal } from "./components/SuccessModal";
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -32,30 +35,34 @@ export default function App() {
   }
 
   return (
-    <Router>
-      <Routes>
-        {/* Ruta pública: Login/Register */}
-        <Route
-          path="/login"
-          element={session ? <Navigate to="/dashboard" replace /> : <AuthScreen />}
-        />
+    <NotificationProvider>
+      <Router>
+        <Routes>
+          {/* Ruta pública: Login/Register */}
+          <Route
+            path="/login"
+            element={session ? <Navigate to="/dashboard" replace /> : <AuthScreen />}
+          />
 
-        {/* Ruta protegida: Dashboard con navegación interna */}
-        <Route
-          path="/dashboard/*"
-          element={
-            <PrivateRoute>
-              <Dashboard />
-            </PrivateRoute>
-          }
-        />
+          {/* Ruta protegida: Dashboard con navegación interna */}
+          <Route
+            path="/dashboard/*"
+            element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            }
+          />
 
-        {/* Redirección por defecto */}
-        <Route
-          path="*"
-          element={<Navigate to={session ? "/dashboard" : "/login"} replace />}
-        />
-      </Routes>
-    </Router>
+          {/* Redirección por defecto */}
+          <Route
+            path="*"
+            element={<Navigate to={session ? "/dashboard" : "/login"} replace />}
+          />
+        </Routes>
+      </Router>
+      <ToastNotification />
+      <SuccessModal />
+    </NotificationProvider>
   );
 }

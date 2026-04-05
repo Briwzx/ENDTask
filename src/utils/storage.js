@@ -18,18 +18,15 @@ export const getUsers = async () => {
 
 // ── Registro de usuario ───────────────────────────────────────────
 export const registerUser = async (userData) => {
-  const { nombre, apellido, telefono, email, anio, password } = userData;
-
+  const { nombre_completo, email, password } = userData;
+  
   // Crear usuario en Supabase Auth
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: {
-        nombre,
-        apellido,
-        telefono,
-        anio
+        nombre_completo
       }
     }
   });
@@ -46,11 +43,8 @@ export const registerUser = async (userData) => {
       .from('profiles')
       .upsert({
         id: data.user.id,
-        nombre,
-        apellido,
-        telefono,
-        email,
-        anio
+        nombre_completo,
+        email
       }, { onConflict: 'id' });
 
     if (profileError) {
@@ -111,6 +105,20 @@ export const getCurrentUserProfile = async () => {
     .single();
 
   if (error) {
+    if (error.code === 'PGRST116') {
+      // Profile does not exist, let's try to create it from auth metadata
+      const { data: newProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          id: user.id,
+          nombre_completo: user.user_metadata?.nombre_completo || 'Usuario Nuevo',
+          email: user.email
+        })
+        .select()
+        .single();
+      
+      if (!createError) return newProfile;
+    }
     console.error('Error fetching user profile:', error);
     return null;
   }
@@ -126,11 +134,8 @@ export const updateUserProfile = async (profileData) => {
   const { data, error } = await supabase
     .from('profiles')
     .update({
-      nombre: profileData.nombre,
-      apellido: profileData.apellido,
-      telefono: profileData.telefono,
-      email: profileData.email,
-      anio: profileData.anio
+      nombre_completo: profileData.nombre_completo,
+      email: profileData.email
     })
     .eq('id', user.id)
     .select()

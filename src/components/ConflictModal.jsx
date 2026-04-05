@@ -6,7 +6,7 @@ const MESES = [
 ];
 const DIAS = Array.from({ length: 31 }, (_, i) => i + 1);
 
-export function ConflictModal({ conflicto, onResolve, onCancel, setToast, recomendado }) {
+export function ConflictModal({ conflicto, onResolve, onCancel, showToast, recomendado }) {
   if (!conflicto) return null;
 
   const horasLibres = conflicto.limite - conflicto.actual;
@@ -14,87 +14,121 @@ export function ConflictModal({ conflicto, onResolve, onCancel, setToast, recome
   const mesRec = recomendado?.mes || "";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900 bg-opacity-40 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-lg w-full border border-red-100 relative">
-        <div className="flex flex-col items-center text-center mb-6">
-          <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-3xl mb-4 shadow-sm border border-red-100">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-dark/40 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-surface rounded-[32px] shadow-premium p-10 max-w-lg w-full border border-border animate-in zoom-in-95 duration-200">
+        <div className="flex flex-col items-center text-center mb-8">
+          <div className="w-20 h-20 bg-red-50 text-status-error rounded-full flex items-center justify-center text-4xl mb-6 border-4 border-red-100 shadow-sm">
             ⚠️
           </div>
-          <h2 className="text-xl font-black text-gray-800 tracking-tight">Sobrecarga Detectada</h2>
-          <p className="text-sm text-gray-500 mt-2 leading-relaxed">
-            El día <span className="font-bold text-gray-700">{conflicto.fecha}</span> supera tu límite diario de <span className="font-bold text-red-500">{conflicto.limite}h</span>.
-            Actualmente tienes <span className="font-bold">{conflicto.actual}h</span> planificadas e intentas sumar <span className="font-bold">{conflicto.horasIntentadas}h</span> con <em>"{conflicto.subtarea.nombre}"</em>.
+          <h2 className="text-2xl font-black text-dark tracking-tight mb-2">Sobrecarga Detectada</h2>
+          <p className="text-muted text-sm leading-relaxed px-4">
+            El día <span className="font-bold text-dark">{conflicto.fecha}</span> supera tu límite diario de <span className="font-bold text-status-error">{conflicto.limite}h</span>.
+            Actualmente tienes <span className="font-bold text-dark">{conflicto.actual}h</span> planificadas e intentas sumar <span className="font-bold text-dark">{conflicto.horasIntentadas}h</span> con <em>"{conflicto.subtarea.nombre}"</em>.
           </p>
         </div>
 
-        <div className="flex flex-col gap-4">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest text-center">Estrategias de Solución</p>
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="flex-1 h-px bg-border"></div>
+            <p className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">Opciones de Solución</p>
+            <div className="flex-1 h-px bg-border"></div>
+          </div>
           
           {/* Opción 1: Mover */}
-          <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 hover:border-yellow-300 transition-colors">
-            <p className="text-sm font-bold text-gray-700 mb-2">
-              Opción A: Mover a otro día {recomendado && <span className="text-xs text-yellow-600 ml-1">(Recomendado)</span>}
-            </p>
+          <div className="group bg-bg p-6 rounded-3xl border border-border hover:border-primary-light transition-all duration-300 shadow-sm hover:shadow-md">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-bold text-dark">
+                A: Mover a otro día
+              </p>
+              {recomendado && (
+                <span className="text-[10px] bg-primary text-white font-black px-2 py-1 rounded-full tracking-widest animate-pulse">
+                  RECOMENDADO
+                </span>
+              )}
+            </div>
             <div className="flex gap-2">
-              <select id="modal-move-day" defaultValue={diaRec} className="flex-1 bg-white rounded-xl px-3 py-2 text-sm text-gray-700 outline-none border border-gray-200">
-                <option value="">Nuevo Día</option>
-                {DIAS.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-              <select id="modal-move-month" defaultValue={mesRec} className="flex-1 bg-white rounded-xl px-3 py-2 text-sm text-gray-700 outline-none border border-gray-200">
-                <option value="">Mes</option>
-                {MESES.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
+              <div className="flex-1 relative">
+                <select 
+                  id="modal-move-day" 
+                  defaultValue={diaRec} 
+                  className="w-full bg-surface rounded-xl px-4 py-3 text-sm text-dark outline-none border border-border focus:border-primary transition-all appearance-none cursor-pointer"
+                >
+                  <option value="">Día</option>
+                  {DIAS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+              <div className="flex-[1.5] relative">
+                <select 
+                  id="modal-move-month" 
+                  defaultValue={mesRec} 
+                  className="w-full bg-surface rounded-xl px-4 py-3 text-sm text-dark outline-none border border-border focus:border-primary transition-all appearance-none cursor-pointer"
+                >
+                  <option value="">Mes</option>
+                  {MESES.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
               <button 
                 onClick={() => {
                   const d = document.getElementById("modal-move-day").value;
                   const m = document.getElementById("modal-move-month").value;
                   if (d && m) onResolve("mover", `${d} ${m}`);
-                  else if (setToast) setToast({ message: "⚠️ Por favor, selecciona un día y un mes para reubicar la tarea.", type: "error" });
+                  else if (showToast) showToast("Por favor, selecciona día y mes.", "error");
                 }}
-                className="px-4 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-colors"
+                className="px-6 bg-primary text-white rounded-xl text-xs font-black tracking-widest hover:bg-primary-light transition-all shadow-md active:scale-95"
               >
-                Aplicar
+                MOVER
               </button>
             </div>
           </div>
 
-          {/* Opción 2: Reducir (Solo si quedan horas libres) */}
+          {/* Opción 2: Reducir */}
           {horasLibres > 0 ? (
-            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 hover:border-yellow-300 transition-colors">
-              <p className="text-sm font-bold text-gray-700 mb-2">Opción B: Reducir horas estimadas</p>
+            <div className="group bg-bg p-6 rounded-3xl border border-border hover:border-primary-light transition-all duration-300 shadow-sm hover:shadow-md">
+              <p className="text-sm font-bold text-dark mb-4">B: Reducir horas estimadas</p>
               <div className="flex gap-2">
-                <input 
-                  id="modal-reduce-hours"
-                  type="number" 
-                  min="1" 
-                  max={horasLibres}
-                  defaultValue={horasLibres}
-                  className="flex-1 bg-white rounded-xl px-3 py-2 text-sm text-gray-700 outline-none border border-gray-200"
-                />
+                <div className="flex-1 relative">
+                  <input 
+                    id="modal-reduce-hours"
+                    type="number" 
+                    min="1" 
+                    max={horasLibres}
+                    defaultValue={horasLibres}
+                    className="w-full bg-surface rounded-xl px-4 py-3 text-sm text-dark outline-none border border-border focus:border-primary transition-all shadow-inner"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted">h</span>
+                </div>
                 <button 
                   onClick={() => {
                     const h = document.getElementById("modal-reduce-hours").value;
                     if (h) onResolve("reducir", h);
                   }}
-                  className="px-4 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-black transition-colors"
+                  className="px-6 bg-dark text-white rounded-xl text-xs font-black tracking-widest hover:bg-black transition-all shadow-md active:scale-95"
                 >
-                  Aplicar
+                  APLICAR
                 </button>
               </div>
+              <p className="text-[10px] text-muted mt-3 font-semibold">
+                * Máximo permitido para este día: <span className="text-primary">{horasLibres}h</span>
+              </p>
             </div>
           ) : (
-            <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
-              <p className="text-sm font-bold text-red-700">Has alcanzado el límite máximo de horas.</p>
-              <p className="text-xs text-red-600 mt-1">No puedes reducir más estas horas en este día. Debes moverla a otra fecha obligatoriamente.</p>
+            <div className="bg-red-50 p-6 rounded-3xl border border-red-100 flex items-start gap-4">
+              <span className="text-xl">🚫</span>
+              <div>
+                <p className="text-sm font-bold text-status-error mb-1">Agenda Llena</p>
+                <p className="text-[11px] text-red-600 leading-relaxed font-semibold">
+                  No quedan horas disponibles hoy. Debes mover esta subtarea a otra fecha obligatoriamente.
+                </p>
+              </div>
             </div>
           )}
         </div>
 
         <button
           onClick={onCancel}
-          className="mt-6 w-full py-3 rounded-xl text-sm font-bold text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+          className="mt-8 w-full py-4 rounded-2xl text-xs font-black text-muted hover:text-dark hover:bg-bg transition-all tracking-[0.2em] border border-transparent hover:border-border"
         >
-          Cancelar
+          CANCELAR OPERACIÓN
         </button>
       </div>
     </div>

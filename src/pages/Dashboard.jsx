@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { IconUser, IconLogout } from "../components/Icons";
+import { useModal } from "../hooks/useModal";
 import { logoutUser, getCurrentUserProfile, getTasks, getCourses } from "../utils/storage";
 import { TaskForm } from "./TaskForm";
 import { Rendimiento } from "./Rendimiento";
-import { AddCurse } from "./AddCurse";
+import { AddCourse } from "./AddCourse";
 import { Perfil } from "./Perfil";
 import { Configuracion } from "./Configuracion";
 
@@ -12,6 +13,7 @@ const NAV_ITEMS = ["TAREAS", "CURSOS", "RENDIMIENTO", "PERFIL", "CONFIGURACIÓN"
 
 export function Dashboard() {
   const navigate = useNavigate();
+  const { showModal } = useModal();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeNav, setActiveNav] = useState("TAREAS");
@@ -53,15 +55,22 @@ export function Dashboard() {
     setVencen(tareasDB.filter((t) => t.vence && t.estado !== "Completada").length);
   };
 
-  const handleLogout = async () => {
-    try {
-      await logoutUser();
-      navigate("/login");
-    } catch (error) {
-      console.error('Error logging out:', error);
-      // Even if logout fails, redirect to login
-      navigate("/login");
-    }
+  const handleLogout = () => {
+    showModal({
+      type: "warning",
+      title: "¿Cerrar sesión?",
+      subtitle: "¿Estás seguro de que deseas salir del Gestor de Tareas?",
+      showCancelButton: true,
+      confirmText: "SALIR",
+      onConfirm: async () => {
+        try {
+          await logoutUser();
+          navigate("/login");
+        } catch (error) {
+          navigate("/login");
+        }
+      }
+    });
   };
 
   if (loading) {
@@ -81,8 +90,8 @@ export function Dashboard() {
         {/* Logo */}
         <div className="px-5 pt-6 pb-8">
           <span
-            className="text-2xl font-black tracking-tight"
-            style={{ color: "#c8a84b", letterSpacing: "-1px" }}
+            className="text-2xl font-black tracking-tight text-primary"
+            style={{ letterSpacing: "-1px" }}
           >
             EYT
           </span>
@@ -94,11 +103,10 @@ export function Dashboard() {
             <button
               key={item}
               onClick={() => setActiveNav(item)}
-              className={`text-left px-3 py-3 rounded-xl text-xs font-bold tracking-widest transition-all ${activeNav === item
-                  ? "text-gray-900 bg-amber-50 border-l-2"
-                  : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+              className={`text-left px-4 py-3 rounded-xl text-[11px] font-bold tracking-widest transition-all ${activeNav === item
+                ? "text-primary bg-primary-mist border-r-4 border-primary"
+                : "text-muted hover:text-dark hover:bg-bg"
                 }`}
-              style={activeNav === item ? { borderColor: "#c8a84b" } : {}}
             >
               {item}
             </button>
@@ -108,13 +116,12 @@ export function Dashboard() {
         {/* Usuario + Cerrar sesión */}
         <div className="px-4 pb-6 flex flex-col items-center gap-2">
           <div
-            className="w-10 h-10 rounded-full flex items-center justify-center"
-            style={{ background: "#f0e8c8" }}
+            className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary-mist text-primary"
           >
             <IconUser />
           </div>
           <span className="text-xs text-gray-500 font-semibold text-center leading-tight">
-            {user.nombre} {user.apellido}
+            {user?.nombre_completo || "Cargando perfil..."}
           </span>
           <button
             onClick={handleLogout}
@@ -128,25 +135,23 @@ export function Dashboard() {
 
       {/* ── Contenido principal ─────────────────────────────────── */}
       <main
-        className="flex-1 overflow-auto"
-        style={{ background: "linear-gradient(180deg, #fdfaf3 0%, #e8dba8 100%)" }}
+        className="flex-1 overflow-auto bg-bg"
       >
         {/* Barra superior */}
-        <div className="flex items-center justify-between px-10 py-5 border-b border-amber-100 bg-white bg-opacity-70 sticky top-0 z-10">
-          <h2 className="text-base font-black tracking-widest text-gray-700">
-            {activeNav === "TAREAS" && "TASK"}
-            {activeNav === "CURSOS" && "CURSOS"}
-            {activeNav === "RENDIMIENTO" && "DASHBOARD"}
-            {activeNav === "PERFIL" && "PERFIL"}
-            {activeNav === "CONFIGURACIÓN" && "CONFIGURACIÓN"}
+        <div className="flex items-center justify-between px-10 py-5 border-b border-border bg-surface sticky top-0 z-10 shadow-sm">
+          <h2 className="text-sm font-bold tracking-widest text-dark uppercase">
+            {activeNav === "TAREAS" && "🚀 PANEL DE CONTROL"}
+            {activeNav === "CURSOS" && "📚 MIS CURSOS TOP"}
+            {activeNav === "RENDIMIENTO" && "📈 RENDIMIENTO ELITE"}
+            {activeNav === "PERFIL" && "👤 MI PERFIL"}
+            {activeNav === "CONFIGURACIÓN" && "⚙️ AJUSTES PRO"}
           </h2>
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-gray-500 tracking-wide uppercase">
               Por Vencer
             </span>
             <span
-              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white"
-              style={{ background: "#e05252" }}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white bg-status-error shadow-sm"
             >
               {vencen}
             </span>
@@ -160,7 +165,7 @@ export function Dashboard() {
 
         {/* ── CURSOS ── */}
         {activeNav === "CURSOS" && (
-          <AddCurse />
+          <AddCourse />
         )}
 
         {/* ── RENDIMIENTO ── */}
@@ -170,11 +175,11 @@ export function Dashboard() {
 
         {/* ── PERFIL ── */}
         {activeNav === "PERFIL" && (
-          <Perfil 
-            user={user} 
-            onUpdateUser={setUser} 
-            tareasCount={tareas.length} 
-            cursosCount={cursos.length} 
+          <Perfil
+            user={user}
+            onUpdateUser={setUser}
+            tareasCount={tareas.length}
+            cursosCount={cursos.length}
           />
         )}
 

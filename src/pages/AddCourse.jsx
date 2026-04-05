@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { getCourses, addCourse, deleteCourse } from "../utils/storage";
-import { ConfirmModal } from "../components/ConfirmModal";
+import { useToast } from "../hooks/useToast";
+import { useModal } from "../hooks/useModal";
+import { translateSupabaseError } from "../utils/errors";
 
 const COLORES_CURSOS = [
   "#e05252",
@@ -11,14 +13,14 @@ const COLORES_CURSOS = [
   "#9052e0",
 ];
 
-export function AddCurse() {
+export function AddCourse() {
+  const { showToast } = useToast();
+  const { showModal } = useModal();
   const [cursos, setCursos] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [nombreCurso, setNombreCurso] = useState("");
   const [colorIndex, setColorIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [cursoToDelete, setCursoToDelete] = useState(null);
 
   // Cargar cursos desde Supabase
   useEffect(() => {
@@ -39,7 +41,10 @@ export function AddCurse() {
   const agregarCurso = async (e) => {
     e.preventDefault();
     const nombre = nombreCurso.trim();
-    if (!nombre) return;
+    if (!nombre) {
+      showToast("Por favor escriba el nombre del curso", "error");
+      return;
+    }
 
     const nuevoCurso = {
       nombre,
@@ -47,56 +52,57 @@ export function AddCurse() {
     };
 
     try {
-      const data = await addCourse(nuevoCurso);
-      setCursos([...cursos, data]);
+      setLoading(true);
+      const cursoGuardado = await addCourse(nuevoCurso);
+      setCursos([...cursos, cursoGuardado]);
       setNombreCurso("");
       setColorIndex(0);
       setShowForm(false);
+      showModal({
+        type: "success",
+        title: "¡Curso creado!",
+        subtitle: "El curso fue agregado a tu lista."
+      });
     } catch (error) {
-      console.error("Error al agregar curso:", error);
-      alert("Lo sentimos, tuvimos un problema al guardar tu curso. Por favor, intenta de nuevo.");
+      const msg = translateSupabaseError(error);
+      showToast(msg, "error");
+    } finally {
+      setLoading(false);
     }
   };
 
   const confirmarEliminar = (id) => {
-    setCursoToDelete(id);
-    setConfirmOpen(true);
+    showModal({
+      type: "warning",
+      title: "¿Eliminar curso?",
+      subtitle: "Esta acción no se puede deshacer.",
+      showCancelButton: true,
+      confirmText: "ELIMINAR",
+      onConfirm: () => ejecutarEliminar(id)
+    });
   };
 
-  const ejecutarEliminar = async () => {
-    if (!cursoToDelete) return;
+  const ejecutarEliminar = async (id) => {
     try {
-      await deleteCourse(cursoToDelete);
-      setCursos(cursos.filter((c) => c.id !== cursoToDelete));
-      setConfirmOpen(false);
-      setCursoToDelete(null);
+      await deleteCourse(id);
+      setCursos(cursos.filter((c) => c.id !== id));
+      showToast("Curso eliminado correctamente", "success");
     } catch (error) {
-      console.error("Error al eliminar curso:", error);
-      alert("Lo sentimos, no pudimos eliminar el curso. Verifica tu conexión a internet.");
+      const msg = translateSupabaseError(error);
+      showToast(msg, "error");
     }
   };
 
   return (
     <div className="p-8">
-      <ConfirmModal 
-        isOpen={confirmOpen}
-        title="Eliminar Curso"
-        message="¿Estás seguro de que deseas eliminar este curso? Esta acción no se puede deshacer."
-        onConfirm={ejecutarEliminar}
-        onCancel={() => {
-          setConfirmOpen(false);
-          setCursoToDelete(null);
-        }}
-      />
       {/* Botón para agregar curso */}
       <div className="flex justify-center mb-6">
         <button
           onClick={() => setShowForm(!showForm)}
-          className="w-10 h-10 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-lg hover:scale-110 transition-transform"
-          style={{ background: "linear-gradient(135deg, #c8a84b, #a8882a)" }}
+          className="w-10 h-10 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-premium hover:scale-110 transition-transform bg-primary"
           title="Crear nuevo curso"
         >
-          {showForm ? "−" : "+"}
+          {showForm ? "\u2212" : "+"}
         </button>
       </div>
 
@@ -107,7 +113,7 @@ export function AddCurse() {
           style={{ boxShadow: "0 8px 40px rgba(0,0,0,0.10)" }}
         >
           <div className="flex items-center justify-between mb-6">
-            <h2 className="font-black text-lg" style={{ color: "#c8a84b" }}>
+            <h2 className="font-bold text-xl text-primary">
               Nuevo Curso
             </h2>
             <button
@@ -129,8 +135,8 @@ export function AddCurse() {
                 required
                 value={nombreCurso}
                 onChange={(e) => setNombreCurso(e.target.value)}
-                placeholder="Ej: Matemáticas II"
-                className="w-full bg-gray-100 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none border border-transparent focus:border-yellow-400 focus:bg-white transition-all"
+                placeholder="Ej: Matem\xe1ticas II"
+                className="input-standard"
               />
             </div>
 
@@ -159,10 +165,7 @@ export function AddCurse() {
             {/* Botón guardar */}
             <button
               type="submit"
-              className="mt-2 w-full py-3 rounded-xl text-sm font-bold text-white tracking-widest shadow-md active:scale-95 transition-transform"
-              style={{
-                background: "linear-gradient(135deg, #c8a84b, #a8882a)",
-              }}
+              className="btn-primary"
             >
               GUARDAR CURSO
             </button>

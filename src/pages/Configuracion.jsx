@@ -1,27 +1,28 @@
 import { useState } from "react";
 import { updateUserProfileSettings } from "../utils/storage";
+import { useToast } from "../hooks/useToast";
+import { translateSupabaseError } from "../utils/errors";
 
 export function Configuracion({ user, onUpdateUser }) {
-  const defaultSettings = { limite_diario: 6 };
-  const currentSettings = user.settings || defaultSettings;
-  
-  const [limiteDiario, setLimiteDiario] = useState(currentSettings.limite_diario);
+  const { showToast } = useToast();
+  const [limiteDiario, setLimiteDiario] = useState(
+    user?.settings?.limite_diario || 6
+  );
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState({ text: "", type: "" });
 
   const handleSave = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setMessage({ text: "", type: "" });
 
     try {
-      const newSettings = { ...currentSettings, limite_diario: Number(limiteDiario) };
-      const updatedProfile = await updateUserProfileSettings(newSettings);
-      onUpdateUser(updatedProfile);
-      setMessage({ text: "¡Listo! Tu configuración ha sido guardada con éxito.", type: "success" });
+      const updatedUser = await updateUserProfileSettings({
+        limite_diario: parseFloat(limiteDiario) || 6,
+      });
+      onUpdateUser(updatedUser);
+      showToast("¡Configuración guardada correctamente!", "success");
     } catch (error) {
-      console.error(error);
-      setMessage({ text: "Hubo un problema al guardar tus ajustes. Por favor, asegúrate de tener conexión y de haber actualizado la base de datos.", type: "error" });
+      const msg = translateSupabaseError(error);
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }
@@ -30,24 +31,10 @@ export function Configuracion({ user, onUpdateUser }) {
   return (
     <div className="p-10 max-w-4xl mx-auto w-full">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-        <h2 className="text-xl font-black text-gray-800 tracking-wide mb-6">CONFIGURACIÓN DE LA APP</h2>
-        
-        {message.text && (
-          <div className={`p-4 rounded-xl mb-6 text-sm font-semibold flex items-center gap-2 ${
-            message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'
-          }`}>
-            {message.type === 'success' ? (
-              <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            )}
-            {message.text}
-          </div>
-        )}
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-dark">Preferencias del Sistema</h2>
+          <p className="text-sm text-muted">Ajusta los parámetros para optimizar tu flujo de trabajo</p>
+        </div>
 
         <form onSubmit={handleSave} className="space-y-8">
           {/* Límite de Horas */}
@@ -69,7 +56,7 @@ export function Configuracion({ user, onUpdateUser }) {
                   max="24"
                   value={limiteDiario}
                   onChange={(e) => setLimiteDiario(e.target.value)}
-                  className="w-24 px-4 py-3 rounded-xl bg-white border border-gray-200 text-center text-sm font-bold text-gray-800 shadow-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all"
+                  className="w-24 px-4 py-3 rounded-xl bg-white border border-border text-center text-sm font-bold text-dark shadow-sm focus:ring-4 focus:ring-primary-ghost focus:border-primary-light outline-none transition-all"
                   required
                 />
                 <span className="text-sm font-bold text-gray-400">horas</span>
@@ -81,12 +68,9 @@ export function Configuracion({ user, onUpdateUser }) {
             <button
               type="submit"
               disabled={loading}
-              className="px-8 py-3 bg-gray-900 hover:bg-black text-white rounded-xl text-sm font-bold tracking-widest transition-all disabled:opacity-50 shadow-md hover:shadow-lg flex items-center gap-2"
-              style={{ background: "#c8a84b", color: "#fff" }}
+              className="btn-primary"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-              </svg>
+
               {loading ? "GUARDANDO..." : "GUARDAR CAMBIOS"}
             </button>
           </div>
