@@ -372,7 +372,7 @@ export function TaskForm({ user, onTaskCreated }) {
       {/* Formulario */}
       {showForm && (
         <div
-          className="bg-white rounded-3xl shadow-xl p-8 max-w-2xl mx-auto"
+          className="bg-white rounded-3xl shadow-xl p-6 md:p-8 w-full max-w-2xl mx-auto"
           style={{ boxShadow: "0 8px 40px rgba(0,0,0,0.10)" }}
         >
           {/* Header */}
@@ -417,7 +417,7 @@ export function TaskForm({ user, onTaskCreated }) {
             </div>
 
             {/* Estado + Prioridad + Curso */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <SelectField
                 label="Estado"
                 value={form.estado}
@@ -586,82 +586,70 @@ export function TaskForm({ user, onTaskCreated }) {
                   </div>
                 ))}
                 {subtareasFormulario.map((sub, idx) => (
-                  <div key={idx} className="flex flex-col gap-2">
-                    <div className="grid grid-cols-6 gap-2 items-center">
-                      <input
-                        type="text"
-                        placeholder="Nombre subtarea"
-                        value={sub.nombre}
-                        onChange={(e) => actualizarSubtareaForm(idx, "nombre", e.target.value)}
-                        className="col-span-2 input-standard !py-2"
-                      />
-                      <div className="relative">
-                        <select
-                          value={sub.dia}
-                          onChange={(e) => actualizarSubtareaForm(idx, "dia", e.target.value)}
-                          className="w-full bg-bg rounded-lg px-3 py-2 text-sm text-dark outline-none appearance-none border border-border focus:border-primary-light transition-all cursor-pointer"
-                        >
-                          <option value="">Día</option>
-                          {DIAS.map((d) => (
-                            <option key={d} value={d}>
-                              {d}
-                            </option>
-                          ))}
-                        </select>
-                        <svg
-                          className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
+                  <div key={idx} className="flex flex-col gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                    <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-center">
+                      <div className="md:col-span-2">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block md:hidden">Nombre Subtarea</label>
+                        <input
+                          type="text"
+                          placeholder="Nombre subtarea"
+                          value={sub.nombre}
+                          onChange={(e) => actualizarSubtareaForm(idx, "nombre", e.target.value)}
+                          className="input-standard !py-2 !h-10"
+                        />
                       </div>
-                      <div className="relative">
-                        <select
-                          value={sub.mes}
-                          onChange={(e) => actualizarSubtareaForm(idx, "mes", e.target.value)}
-                          className="w-full bg-bg rounded-lg px-3 py-2 text-sm text-dark outline-none appearance-none border border-border focus:border-primary-light transition-all cursor-pointer"
-                        >
-                          <option value="">Mes</option>
-                          {MESES.map((m) => (
-                            <option key={m} value={m}>
-                              {m}
-                            </option>
-                          ))}
-                        </select>
-                        <svg
-                          className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block md:hidden">Día</label>
+                        <div className="relative">
+                          <select
+                            value={sub.dia}
+                            onChange={(e) => actualizarSubtareaForm(idx, "dia", e.target.value)}
+                            className="w-full bg-white rounded-lg px-3 py-2 text-sm text-dark outline-none appearance-none border border-border focus:border-primary-light transition-all cursor-pointer h-10"
+                          >
+                            <option value="">Día</option>
+                            {DIAS.map((d) => (
+                              <option key={d} value={d}>{d}</option>
+                            ))}
+                          </select>
+                          <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
                       </div>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="Horas"
-                        value={sub.horas}
-                        onChange={(e) => actualizarSubtareaForm(idx, "horas", e.target.value)}
-                        className="w-full bg-bg rounded-lg px-3 py-2 text-sm text-dark outline-none border border-border focus:border-primary-light transition-all shadow-inner"
-                      />
-                      <div className="flex gap-1 justify-end items-center">
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block md:hidden">Mes</label>
+                        <div className="relative">
+                          <select
+                            value={sub.mes}
+                            onChange={(e) => actualizarSubtareaForm(idx, "mes", e.target.value)}
+                            className="w-full bg-white rounded-lg px-3 py-2 text-sm text-dark outline-none appearance-none border border-border focus:border-primary-light transition-all cursor-pointer h-10"
+                          >
+                            <option value="">Mes</option>
+                            {MESES.map((m) => (
+                              <option key={m} value={m}>{m}</option>
+                            ))}
+                          </select>
+                          <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block md:hidden">Horas</label>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="Horas"
+                          value={sub.horas}
+                          onChange={(e) => actualizarSubtareaForm(idx, "horas", e.target.value)}
+                          className="w-full bg-white rounded-lg px-3 py-2 text-sm text-dark outline-none border border-border focus:border-primary-light transition-all h-10"
+                        />
+                      </div>
+                      <div className="flex justify-end">
                         <button
                           type="button"
                           onClick={() => eliminarSubtareaFormulario(idx)}
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm hover:scale-110 transition-transform bg-red-500 hover:bg-red-600"
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm bg-red-500 hover:bg-red-600 transition-all hover:scale-110"
                           title="Eliminar subtarea"
                         >
                           ✕

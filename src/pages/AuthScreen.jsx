@@ -12,7 +12,7 @@ export function AuthScreen() {
   };
 
   return (
-    <div className="min-h-screen grid grid-cols-1 md:grid-cols-[40%_60%] font-sans overflow-hidden">
+    <div className="h-screen grid grid-cols-1 md:grid-cols-[40%_60%] font-sans overflow-hidden">
       {/* Lado izquierdo (40%) - Desktop Only Design */}
       <div className="hidden md:flex flex-col justify-between p-12 bg-dark text-white relative">
         {/* Logo */}
@@ -62,15 +62,14 @@ export function AuthScreen() {
             </li>
           </ul>
         </div>
-
       </div>
 
       {/* Lado derecho (60%) */}
-      <div className="bg-surface flex items-center justify-center p-6 md:p-12 relative overflow-hidden">
+      <div className="bg-surface flex items-start md:items-center justify-center p-6 md:p-12 relative overflow-y-auto h-screen">
         {/* Floating Decor Point */}
         <div className="absolute top-1/4 right-1/4 w-3 h-3 rounded-full bg-primary animate-pulse opacity-50" />
 
-        <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-700 py-12">
           {/* Logo Mobile Only */}
           <div className="md:hidden flex items-center gap-2 mb-8">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
@@ -80,8 +79,8 @@ export function AuthScreen() {
           </div>
 
           <div className="mb-12 text-center md:text-left">
-            <h2 className="text-3xl font-semibold text-dark">Bienvenido de nuevo</h2>
-            <p className="text-muted mt-2">Ingresa tus credenciales para acceder</p>
+            <h2 className="text-3xl font-semibold text-dark">Bienvenido</h2>
+            <p className="text-muted mt-2">Accede a tu cuenta para continuar</p>
           </div>
 
           {/* Tabs */}
@@ -115,7 +114,7 @@ export function AuthScreen() {
           </div>
 
           {/* Legal text */}
-          <p className="mt-8 text-center text-xs text-muted leading-relaxed">
+          <p className="mt-8 text-center text-xs text-muted leading-relaxed px-6">
             Al continuar, aceptas nuestros <span className="underline cursor-pointer">Términos de Servicio</span> y <span className="underline cursor-pointer">Política de Privacidad</span>.
           </p>
         </div>

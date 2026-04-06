@@ -1,4 +1,29 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  Legend 
+} from 'recharts';
+import { 
+  startOfWeek, 
+  endOfWeek, 
+  subWeeks, 
+  isWithinInterval, 
+  format,
+  startOfToday,
+  addHours
+} from 'date-fns';
+import { es } from 'date-fns/locale';
+import { supabase } from '../utils/supabase';
+import { getTasks, getCourses } from '../utils/storage';
+import { translateSupabaseError } from '../utils/errors';
+import { useToast } from '../hooks/useToast';
 
 // ── Íconos de las tarjetas stat ───────────────────────────────────
 const IconColaborador = () => (
@@ -19,165 +44,145 @@ const IconTareas = () => (
   </svg>
 );
 
-// ── Componente gráfico de líneas (Canvas) ─────────────────────────
-function LineChart({ data, labels, colors, height = 280 }) {
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    const W = canvas.width;
-    const H = canvas.height;
-    const padX = 48;
-    const padY = 24;
-    const chartW = W - padX * 2;
-    const chartH = H - padY * 2;
-
-    ctx.clearRect(0, 0, W, H);
-
-    // Fondo oscuro
-    ctx.fillStyle = "#1a2340";
-    ctx.roundRect(0, 0, W, H, 16);
-    ctx.fill();
-
-    const allValues = data.flat();
-    const maxVal = Math.max(...allValues) * 1.15;
-    const minVal = Math.min(...allValues) * 0.85;
-    const range = maxVal - minVal || 1;
-
-    const xStep = chartW / (labels.length - 1);
-
-    // Grid lines
-    ctx.strokeStyle = "rgba(255,255,255,0.08)";
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= 6; i++) {
-      const y = padY + (chartH / 6) * i;
-      ctx.beginPath();
-      ctx.moveTo(padX, y);
-      ctx.lineTo(W - padX, y);
-      ctx.stroke();
-      // Labels eje Y
-      const val = Math.round(maxVal - (range / 6) * i);
-      ctx.fillStyle = "rgba(255,255,255,0.4)";
-      ctx.font = "10px Georgia";
-      ctx.textAlign = "right";
-      ctx.fillText(val, padX - 6, y + 4);
-    }
-
-    // Labels eje X
-    ctx.fillStyle = "rgba(255,255,255,0.4)";
-    ctx.font = "10px Georgia";
-    ctx.textAlign = "center";
-    labels.forEach((lbl, i) => {
-      ctx.fillText(lbl, padX + i * xStep, H - 6);
-    });
-
-    // Líneas de datos
-    data.forEach((series, si) => {
-      const color = colors[si] || "#c8a84b";
-      const points = series.map((v, i) => ({
-        x: padX + i * xStep,
-        y: padY + chartH - ((v - minVal) / range) * chartH,
-      }));
-
-      // Área rellena suave
-      ctx.beginPath();
-      ctx.moveTo(points[0].x, H - padY);
-      points.forEach((p, i) => {
-        if (i === 0) { ctx.lineTo(p.x, p.y); return; }
-        const cp1x = points[i - 1].x + (p.x - points[i - 1].x) / 2;
-        ctx.bezierCurveTo(cp1x, points[i - 1].y, cp1x, p.y, p.x, p.y);
-      });
-      ctx.lineTo(points[points.length - 1].x, H - padY);
-      ctx.closePath();
-      ctx.fillStyle = color.replace(")", ", 0.12)").replace("rgb(", "rgba(").replace("#", "");
-      // Hack para hex color → rgba
-      const hex2rgba = (hex, a) => {
-        const r = parseInt(hex.slice(1, 3), 16);
-        const g = parseInt(hex.slice(3, 5), 16);
-        const b = parseInt(hex.slice(5, 7), 16);
-        return `rgba(${r},${g},${b},${a})`;
-      };
-      ctx.fillStyle = hex2rgba(color, 0.12);
-      ctx.fill();
-
-      // Línea principal
-      ctx.beginPath();
-      points.forEach((p, i) => {
-        if (i === 0) { ctx.moveTo(p.x, p.y); return; }
-        const cp1x = points[i - 1].x + (p.x - points[i - 1].x) / 2;
-        ctx.bezierCurveTo(cp1x, points[i - 1].y, cp1x, p.y, p.x, p.y);
-      });
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
-
-      // Puntos
-      points.forEach((p) => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-        ctx.fillStyle = color;
-        ctx.fill();
-        ctx.strokeStyle = "#1a2340";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      });
-    });
-  }, [data, labels, colors, height]);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      width={740}
-      height={height}
-      style={{ width: "100%", height: "auto", borderRadius: 12 }}
-    />
-  );
-}
-
 // ── Página de Rendimiento ─────────────────────────────────────────
 export function Rendimiento({ user }) {
-  const [filtroColaborador, setFiltroColaborador] = useState("");
-  const [filtroDepartamento, setFiltroDepartamento] = useState("");
-  const [filtroFecha, setFiltroFecha] = useState("");
-
+  const { showToast } = useToast();
+  const [loading, setLoading] = useState(true);
   const [tareas, setTareas] = useState([]);
+  const [chartData, setChartData] = useState([]);
+  const [summary, setSummary] = useState({
+    completadas: 0,
+    enProgreso: 0,
+    pendientes: 0,
+    porVencer: 0
+  });
+
+  const chartColors = ["#3b8de0", "#e040c8", "#c840e0", "#40c8e0"];
 
   useEffect(() => {
-    import("../utils/storage").then(m => m.getTasks().then(setTareas));
-  }, []);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        // 4. Query sin filtro de fecha (trae todo)
+        const { data: tasks, error } = await supabase
+          .from('tasks')
+          .select('id, titulo, estado, completada, fecha')
+          .eq('user_id', user.id)
+          .order('fecha', { ascending: true });
 
-  const completadas = tareas.filter((t) => t.estado === "Completada").length;
-  const enProgreso = tareas.filter((t) => t.estado === "En progreso").length;
-  const pendientes = tareas.filter((t) => t.estado === "Pendiente").length;
-  const totalTareas = tareas.length;
+        if (error) throw error;
 
-  // Datos para el gráfico — últimas 8 semanas simuladas + reales
-  const semanas = ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"];
-  const base = [200, 340, 280, 450, 380, 520, 460, 600];
-  const chartData = [
-    base.map((v) => Math.round(v * 1.0 + completadas * 10)),
-    base.map((v) => Math.round(v * 0.75 + enProgreso * 8)),
-    base.map((v) => Math.round(v * 0.55 + pendientes * 6)),
-    base.map((v) => Math.round(v * 0.35 + totalTareas * 4)),
-  ];
-  const chartColors = ["#3b8de0", "#e040c8", "#c840e0", "#40c8e0"];
+        // 1. Imprimir datos crudos para verificar
+        console.log('tareas raw:', tasks);
+        if (tasks.length > 0) {
+          console.log('fecha ejemplo:', tasks[0]?.fecha);
+        }
+
+        setTareas(tasks);
+
+        // 5. Tarjetas de Resumen (totales globales)
+        const ahora_ms = Date.now();
+        const dentro48h_ms = ahora_ms + 48 * 60 * 60 * 1000;
+        
+        const globales = {
+          completadas: tasks.filter(t => t.completada === true).length,
+          enProgreso: tasks.filter(t => t.estado === "En progreso" || t.estado === "En Progreso").length,
+          pendientes: tasks.filter(t => t.estado === "Pendiente").length,
+          porVencer: tasks.filter(t => {
+            if (t.completada) return false;
+            // Si 'fecha' o un campo de vencimiento existe, usarlo. 
+            // El usuario sugirió new Date(t.vence), pero verificamos 'fecha' que es el timestamp.
+            const f = new Date(t.fecha);
+            return !isNaN(f.getTime()) && f.getTime() <= dentro48h_ms;
+          }).length
+        };
+        setSummary(globales);
+
+        // 2. Cálculo de semanas (Lógica proporcionada)
+        const ahora = new Date();
+        const semanasConfig = Array.from({ length: 8 }, (_, i) => {
+          const fin = new Date(ahora);
+          fin.setDate(ahora.getDate() - (7 * (7 - i))); // Ajuste para que S8 sea la actual
+          const inicio = new Date(fin);
+          inicio.setDate(fin.getDate() - 6);
+          inicio.setHours(0, 0, 0, 0);
+          fin.setHours(23, 59, 59, 999);
+          return { label: `S${i + 1}`, inicio, fin };
+        });
+
+        // 3. Filtro de tareas por semana
+        const semanaData = semanasConfig.map(({ label, inicio, fin }) => {
+          const tareasDeSemana = tasks.filter(t => {
+            const fechaTarea = new Date(t.fecha);
+            return fechaTarea >= inicio && fechaTarea <= fin;
+          });
+          
+          const comp = tareasDeSemana.filter(t => t.completada === true).length;
+          const prog = tareasDeSemana.filter(t => t.estado === 'En progreso' || t.estado === 'En Progreso').length;
+          const pend = tareasDeSemana.filter(t => t.estado === 'Pendiente').length;
+
+          return {
+            name: label,
+            Completadas: comp,
+            "En Progreso": prog,
+            Pendientes: pend,
+            Total: tareasDeSemana.length
+          };
+        });
+
+        console.log('semanaData:', semanaData);
+        setChartData(semanaData);
+
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        showToast(translateSupabaseError(error), "error");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [showToast, user.id]);
 
   const stats = [
     { label: "Colaboradores", value: 1, icon: <IconColaborador /> },
     { label: "Departamentos", value: 1, icon: <IconDepartamento /> },
-    { label: "Tareas Totales", value: totalTareas, icon: <IconTareas /> },
+    { label: "Tareas Totales", value: tareas.length, icon: <IconTareas /> },
   ];
 
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center h-[500px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (tareas.length === 0) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center h-[500px] gap-6 text-center px-8">
+        <div className="bg-primary-mist/20 p-8 rounded-full">
+          <IconTareas />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-dark mb-2">Aún no tienes tareas registradas</h2>
+          <p className="text-muted text-sm max-w-sm mx-auto">Comienza por crear tu primera tarea para ver tu progreso y rendimiento aquí.</p>
+        </div>
+        <Link to="/dashboard" className="btn-primary">
+          CREAR MI PRIMERA TAREA
+        </Link>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-8 flex flex-col gap-6">
+    <div className="p-8 flex flex-col gap-6 max-w-6xl mx-auto w-full">
 
       {/* Tarjetas stat */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {stats.map((s) => (
           <div key={s.label}
-            className="rounded-card p-6 flex flex-col items-center gap-3 shadow-premium bg-primary text-white border border-primary-light"
+            className="card-standard p-6 flex flex-col items-center gap-3 bg-primary text-white border-none"
           >
             <div className="bg-white/20 p-3 rounded-2xl">
               {s.icon}
@@ -194,82 +199,77 @@ export function Rendimiento({ user }) {
         ))}
       </div>
 
-      {/* Filtros */}
-      <div className="bg-white rounded-2xl px-6 py-4 flex items-center gap-4 shadow-sm flex-wrap">
-        {/* Colaborador */}
-        <div className="flex items-center gap-2 flex-1 min-w-32">
-          <span className="text-xs font-bold text-gray-600 uppercase tracking-wide whitespace-nowrap">Colaborador:</span>
-          <div className="relative flex-1">
-            <select value={filtroColaborador} onChange={(e) => setFiltroColaborador(e.target.value)}
-              className="w-full bg-white rounded-lg px-3 py-2 text-sm text-dark outline-none appearance-none border border-border focus:border-primary-light transition-all cursor-pointer shadow-sm">
-              <option value="">Todos</option>
-              <option value={user?.nombre_completo}>{user?.nombre_completo}</option>
-            </select>
-            <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
-        </div>
-
-        {/* Departamento */}
-        <div className="flex items-center gap-2 flex-1 min-w-32">
-          <span className="text-xs font-bold text-gray-600 uppercase tracking-wide whitespace-nowrap">Departamento:</span>
-          <div className="relative flex-1">
-            <select value={filtroDepartamento} onChange={(e) => setFiltroDepartamento(e.target.value)}
-              className="w-full bg-white rounded-lg px-3 py-2 text-sm text-dark outline-none appearance-none border border-border focus:border-primary-light transition-all cursor-pointer shadow-sm">
-              <option value="">Todos</option>
-              <option value="general">General</option>
-            </select>
-            <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-         </div>
-        </div>
-
-        {/* Fecha */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-gray-600 uppercase tracking-wide whitespace-nowrap">Fecha:</span>
-          <input
-            type="date"
-            value={filtroFecha}
-            onChange={(e) => setFiltroFecha(e.target.value)}
-            className="bg-white rounded-lg px-3 py-2 text-sm text-dark outline-none border border-border focus:border-primary-light shadow-sm"
-          />
-          <button className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold"
-            style={{ background: "#22c55e" }}>
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
       {/* Gráfico */}
-      <div className="rounded-2xl overflow-hidden shadow-lg">
-        <LineChart data={chartData} labels={semanas} colors={chartColors} height={280} />
-      </div>
-
-      {/* Leyenda */}
-      <div className="flex gap-6 flex-wrap">
-        {["Completadas", "En Progreso", "Pendientes", "Total"].map((lbl, i) => (
-          <div key={lbl} className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full" style={{ background: chartColors[i] }} />
-            <span className="text-xs font-semibold text-gray-500">{lbl}</span>
-          </div>
-        ))}
+      <div className="bg-[#1a2340] rounded-2xl p-6 shadow-xl border border-white/5 h-[400px]">
+        <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-6">Tendencia últimas 8 semanas</h3>
+        <ResponsiveContainer width="100%" height="90%">
+          <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+            <XAxis 
+              dataKey="name" 
+              axisLine={false} 
+              tickLine={false} 
+              tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
+              dy={10}
+            />
+            <YAxis 
+              axisLine={false} 
+              tickLine={false} 
+              tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
+            />
+            <Tooltip 
+              contentStyle={{ backgroundColor: '#1a2340', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
+              itemStyle={{ fontSize: '12px' }}
+            />
+            <Legend 
+              verticalAlign="bottom" 
+              height={36} 
+              iconType="circle"
+              wrapperStyle={{ paddingTop: '20px', fontSize: '11px', fontWeight: '600', color: 'rgba(255,255,255,0.5)' }}
+            />
+            <Line 
+              type="monotone" 
+              dataKey="Completadas" 
+              stroke={chartColors[0]} 
+              strokeWidth={3}
+              dot={{ r: 4, stroke: '#1a2340', strokeWidth: 2, fill: chartColors[0] }}
+              activeDot={{ r: 6 }}
+            />
+            <Line 
+              type="monotone" 
+              dataKey="En Progreso" 
+              stroke={chartColors[1]} 
+              strokeWidth={3}
+              dot={{ r: 4, stroke: '#1a2340', strokeWidth: 2, fill: chartColors[1] }}
+            />
+            <Line 
+              type="monotone" 
+              dataKey="Pendientes" 
+              stroke={chartColors[2]} 
+              strokeWidth={3}
+              dot={{ r: 4, stroke: '#1a2340', strokeWidth: 2, fill: chartColors[2] }}
+            />
+            <Line 
+              type="monotone" 
+              dataKey="Total" 
+              stroke={chartColors[3]} 
+              strokeWidth={3}
+              dot={{ r: 4, stroke: '#1a2340', strokeWidth: 2, fill: chartColors[3] }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
       </div>
 
       {/* Resumen rápido */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Completadas", value: completadas, color: "#22c55e" },
-          { label: "En Progreso", value: enProgreso, color: "#3b8de0" },
-          { label: "Pendientes", value: pendientes, color: "#3B82F6" },
-          { label: "Por Vencer", value: tareas.filter(t => t.vence).length, color: "#EF4444" },
+          { label: "Completadas", value: summary.completadas, color: "#22c55e" },
+          { label: "En Progreso", value: summary.enProgreso, color: "#3b8de0" },
+          { label: "Pendientes", value: summary.pendientes, color: "#3B82F6" },
+          { label: "Por Vencer", value: summary.porVencer, color: "#EF4444" },
         ].map((item) => (
-          <div key={item.label} className="bg-surface rounded-xl p-4 flex flex-col items-center gap-1 shadow-sm border border-border">
-            <span className="text-2xl font-black" style={{ color: item.color }}>{item.value}</span>
+          <div key={item.label} className="bg-surface rounded-xl p-5 flex flex-col items-center gap-1 shadow-sm border border-border">
+            <span className="text-3xl font-black" style={{ color: item.color }}>{item.value}</span>
             <span className="text-[10px] font-bold text-muted uppercase tracking-wider text-center">{item.label}</span>
           </div>
         ))}

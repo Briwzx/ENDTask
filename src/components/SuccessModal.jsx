@@ -8,7 +8,7 @@ export function SuccessModal() {
 
   return (
     <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-dark/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-surface rounded-[24px] shadow-premium p-10 max-w-sm w-full animate-in zoom-in-95 duration-200 text-center border border-border">
+      <div className="bg-surface rounded-[24px] shadow-premium p-8 md:p-10 w-[90%] md:w-full max-w-sm animate-in zoom-in-95 duration-200 text-center border border-border mx-auto">
         {/* Ícono dinámico */}
         <div className={`mx-auto w-24 h-24 rounded-full flex items-center justify-center mb-8 border-8 ${
           modal.type === 'success' 
@@ -45,23 +45,27 @@ export function SuccessModal() {
         {/* Botones */}
         <div className="flex flex-col gap-3">
           {modal.showCancelButton ? (
-            <div className="flex gap-3">
+            <div className="flex gap-4">
               <button
+                type="button"
                 onClick={() => {
                   modal.onCancel?.();
                   hideModal();
                 }}
-                className="flex-1 py-4 px-6 border-2 border-border rounded-2xl text-sm font-bold text-muted hover:bg-bg transition-colors tracking-widest"
+                className="flex-1 py-2.5 px-6 bg-white border border-border rounded-lg text-sm font-semibold text-dark hover:bg-bg transition-all"
               >
                 {modal.cancelText || 'CANCELAR'}
               </button>
               <button
+                type="button"
                 onClick={() => {
                   modal.onConfirm?.();
                   hideModal();
                 }}
-                className={`flex-1 py-4 px-6 rounded-2xl text-sm font-bold text-white tracking-widest shadow-md hover:shadow-lg transition-all ${
-                  modal.type === 'warning' || modal.type === 'error' ? 'bg-status-error' : 'bg-primary'
+                className={`flex-1 py-2.5 px-6 rounded-lg text-sm font-semibold text-white shadow-sm transition-all ${
+                  modal.type === 'warning' || modal.type === 'error' 
+                    ? 'bg-[#E53935] hover:bg-red-700' 
+                    : 'bg-primary hover:bg-primary-light'
                 }`}
               >
                 {modal.confirmText || 'CONFIRMAR'}
@@ -69,11 +73,12 @@ export function SuccessModal() {
             </div>
           ) : (
             <button
+              type="button"
               onClick={() => {
                 modal.onConfirm?.() || modal.onClose?.();
                 hideModal();
               }}
-              className="w-full py-4 px-6 bg-primary text-white rounded-2xl text-sm font-bold shadow-md hover:shadow-lg transition-all tracking-widest"
+              className="w-full py-2.5 px-6 bg-primary hover:bg-primary-light text-white rounded-lg text-sm font-semibold shadow-sm transition-all"
             >
               {modal.confirmText || 'ENTENDIDO'}
             </button>

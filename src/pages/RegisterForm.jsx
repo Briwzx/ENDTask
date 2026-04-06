@@ -9,7 +9,8 @@ export function RegisterForm({ onSuccess }) {
   const { showToast } = useToast();
   const [form, setForm] = useState({
     nombre_completo: "",
-    email: "",
+    email: "", // Correo personal/primario
+    email_institucional: "", // Correo institucional (opcional)
     password: "",
   });
   const [showPw, setShowPw] = useState(false);
@@ -18,7 +19,7 @@ export function RegisterForm({ onSuccess }) {
     e.preventDefault();
     try {
       await registerUser(form);
-      showToast(`¡Cuenta creada exitosamente! Bienvenido/a, ${form.nombre_completo} 🎉`, "success");
+      showToast(`¡Cuenta creada! Bienvenido/a, ${form.nombre_completo} 🎉`, "success");
       onSuccess?.();
       setTimeout(() => navigate("/dashboard"), 1500);
     } catch (error) {
@@ -42,12 +43,25 @@ export function RegisterForm({ onSuccess }) {
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-dark mb-2">Correo institucional</label>
+        <label className="block text-sm font-semibold text-dark mb-2">Correo electrónico</label>
         <input 
           type="email" 
           required 
           value={form.email}
           onChange={(e) => setForm({...form, email: e.target.value})}
+          placeholder="tu@correo.com"
+          className="input-standard" 
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold text-dark mb-2">
+          Correo institucional <span className="text-muted text-xs font-normal">(opcional)</span>
+        </label>
+        <input 
+          type="email" 
+          value={form.email_institucional}
+          onChange={(e) => setForm({...form, email_institucional: e.target.value})}
           placeholder="usuario@universidad.edu"
           className="input-standard" 
         />

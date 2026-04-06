@@ -36,7 +36,28 @@ export function Dashboard() {
 
         setTareas(tareasDB);
         setCursos(cursosDB);
-        setVencen(tareasDB.filter((t) => t.vence && t.estado !== "Completada").length);
+        
+        // Calcular tareas por vencer (próximas 48h)
+        const ahora = new Date();
+        const dentro48h = new Date(ahora.getTime() + 48 * 60 * 60 * 1000);
+        
+        const count = tareasDB.filter((t) => {
+          if (t.estado === "Completada") return false;
+          if (!t.fin || t.fin === "—") return false;
+          
+          const parts = t.fin.split(" ");
+          if (parts.length !== 2) return false;
+          const dia = parseInt(parts[0]);
+          const mesIdx = MESES_ES.indexOf(parts[1]);
+          if (isNaN(dia) || mesIdx === -1) return false;
+          
+          const fechaVence = new Date(ahora.getFullYear(), mesIdx, dia);
+          // Si la fecha ya pasó este año, asumimos que es del próximo (opcional, pero razonable)
+          // Pero para 48h, simplemente comparamos rangos
+          return fechaVence > ahora && fechaVence <= dentro48h;
+        }).length;
+        
+        setVencen(count);
       } catch (error) {
         console.error('Error loading data:', error);
         navigate("/login");
@@ -48,11 +69,30 @@ export function Dashboard() {
     loadUserAndData();
   }, [navigate]);
 
+  const MESES_ES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
   const handleTaskCreated = async () => {
     // Recargar tareas
     const tareasDB = await getTasks();
     setTareas(tareasDB);
-    setVencen(tareasDB.filter((t) => t.vence && t.estado !== "Completada").length);
+    
+    const ahora = new Date();
+    const dentro48h = new Date(ahora.getTime() + 48 * 60 * 60 * 1000);
+    const count = tareasDB.filter((t) => {
+      if (t.estado === "Completada") return false;
+      if (!t.fin || t.fin === "—") return false;
+      const parts = t.fin.split(" ");
+      if (parts.length === 2) {
+        const dia = parseInt(parts[0]);
+        const mesIdx = MESES_ES.indexOf(parts[1]);
+        if (!isNaN(dia) && mesIdx !== -1) {
+          const fechaVence = new Date(ahora.getFullYear(), mesIdx, dia);
+          return fechaVence > ahora && fechaVence <= dentro48h;
+        }
+      }
+      return false;
+    }).length;
+    setVencen(count);
   };
 
   const handleLogout = () => {
@@ -80,11 +120,11 @@ export function Dashboard() {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden" style={{ fontFamily: "'Roboto', sans-serif" }}>
+    <div className="flex h-screen w-screen overflow-hidden flex-col md:flex-row" style={{ fontFamily: "'Roboto', sans-serif" }}>
 
-      {/* ── Sidebar ─────────────────────────────────────────────── */}
+      {/* ── Sidebar (Desktop) ─────────────────────────────────────────── */}
       <aside
-        className="w-36 flex-shrink-0 flex flex-col bg-white border-r border-gray-100"
+        className="hidden md:flex w-36 flex-shrink-0 flex-col bg-white border-r border-gray-100"
         style={{ boxShadow: "2px 0 12px rgba(0,0,0,0.04)" }}
       >
         {/* Logo */}
@@ -133,12 +173,32 @@ export function Dashboard() {
         </div>
       </aside>
 
+      {/* ── Barra de Navegación Móvil (Bottom Nav) ── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-border z-50 flex justify-around items-center px-2 py-3 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+        {NAV_ITEMS.map((item) => (
+          <button
+            key={item}
+            onClick={() => setActiveNav(item)}
+            className={`flex flex-col items-center gap-1 transition-all ${activeNav === item ? "text-primary" : "text-muted"}`}
+          >
+            <span className="text-[9px] font-bold tracking-tighter uppercase">{item}</span>
+            {activeNav === item && <div className="w-1 h-1 rounded-full bg-primary" />}
+          </button>
+        ))}
+        <button
+          onClick={handleLogout}
+          className="text-muted hover:text-red-500 flex flex-col items-center gap-1"
+        >
+          <IconLogout />
+        </button>
+      </nav>
+
       {/* ── Contenido principal ─────────────────────────────────── */}
       <main
-        className="flex-1 overflow-auto bg-bg"
+        className="flex-1 overflow-auto bg-bg pb-20 md:pb-0"
       >
         {/* Barra superior */}
-        <div className="flex items-center justify-between px-10 py-5 border-b border-border bg-surface sticky top-0 z-10 shadow-sm">
+        <div className="flex items-center justify-between px-6 md:px-10 py-5 border-b border-border bg-surface sticky top-0 z-10 shadow-sm">
           <h2 className="text-sm font-bold tracking-widest text-dark uppercase">
             {activeNav === "TAREAS" && "🚀 PANEL DE CONTROL"}
             {activeNav === "CURSOS" && "📚 MIS CURSOS TOP"}
@@ -150,11 +210,13 @@ export function Dashboard() {
             <span className="text-xs font-semibold text-gray-500 tracking-wide uppercase">
               Por Vencer
             </span>
-            <span
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white bg-status-error shadow-sm"
-            >
-              {vencen}
-            </span>
+            {vencen > 0 && (
+              <span
+                className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white bg-[#E53935] shadow-sm ml-1"
+              >
+                {vencen > 99 ? "99+" : vencen}
+              </span>
+            )}
           </div>
         </div>
 

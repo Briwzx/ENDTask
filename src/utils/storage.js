@@ -18,7 +18,7 @@ export const getUsers = async () => {
 
 // ── Registro de usuario ───────────────────────────────────────────
 export const registerUser = async (userData) => {
-  const { nombre_completo, email, password } = userData;
+  const { nombre_completo, email, password, email_institucional } = userData;
   
   // Crear usuario en Supabase Auth
   const { data, error } = await supabase.auth.signUp({
@@ -36,20 +36,18 @@ export const registerUser = async (userData) => {
   }
 
   // Si el registro es exitoso, el trigger on_auth_user_created creará el perfil inicial vacio.
-  // Usamos upsert para actualizar los datos proporcionados desde el formulario
-  // sin generar error de llave duplicada (duplicate key constraint).
   if (data.user) {
     const { error: profileError } = await supabase
       .from('profiles')
       .upsert({
         id: data.user.id,
         nombre_completo,
-        email
+        email,
+        email_institucional: email_institucional || null
       }, { onConflict: 'id' });
 
     if (profileError) {
       console.error('Error creating/updating profile:', profileError);
-      // throw so the caller knows it failed (e.g. policy issues)
       throw profileError;
     }
   }

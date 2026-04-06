@@ -27,13 +27,13 @@ export function LoginForm({ onSuccess }) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <div>
-        <label className="block text-sm font-semibold text-dark mb-2">Correo institucional</label>
+        <label className="block text-sm font-semibold text-dark mb-2">Correo electrónico</label>
         <input 
           type="email" 
           required 
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="usuario@universidad.edu"
+          placeholder="tu@correo.com"
           className="input-standard" 
         />
       </div>
