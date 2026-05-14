@@ -80,7 +80,7 @@ export function AuthScreen() {
 
           <div className="mb-12 text-center md:text-left">
             <h2 className="text-3xl font-semibold text-dark">Bienvenido</h2>
-            <p className="text-muted mt-2">Accede a tu cuenta para continuar</p>
+            <p className="text-muted mt-2">Accede a tu cuenta paras continuar</p>
           </div>
 
           {/* Tabs */}

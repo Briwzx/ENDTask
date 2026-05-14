@@ -1416,7 +1416,7 @@ function TareasList({ tareas, setTareas, user }) {
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-xs font-bold text-dark uppercase tracking-wide">Agregar subtarea:</p>
                         <div className="flex items-center gap-2 px-3 py-1 bg-primary-mist rounded-full border border-primary-ghost">
-                          <span className="text-[10px] font-bold text-primary uppercase tracking-wider">L\xedmite Diario: {limitHours}h</span>
+                          <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Límite Diario: {limitHours}h</span>
                           {/* Pequeño calculador de carga en tiempo real */}
                           {(() => {
                             const subForm = nuevasSubtareasPorTarea[t.id];

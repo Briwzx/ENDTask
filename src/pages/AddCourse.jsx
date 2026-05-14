@@ -135,7 +135,7 @@ export function AddCourse() {
                 required
                 value={nombreCurso}
                 onChange={(e) => setNombreCurso(e.target.value)}
-                placeholder="Ej: Matem\xe1ticas II"
+                placeholder="Ej: Matematicas II"
                 className="input-standard"
               />
             </div>

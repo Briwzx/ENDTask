@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   nombre_completo TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE,
+  email_institucional TEXT UNIQUE,
   settings JSONB DEFAULT '{"limite_diario": 6}'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()) NOT NULL,

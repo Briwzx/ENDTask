@@ -42,8 +42,7 @@ export const registerUser = async (userData) => {
       .upsert({
         id: data.user.id,
         nombre_completo,
-        email,
-        email_institucional: email_institucional || null
+        email
       }, { onConflict: 'id' });
 
     if (profileError) {
