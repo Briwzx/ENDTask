@@ -52,12 +52,48 @@ npm run dev
 http://localhost:5174
 ```
 
+## Backend y API
+
+### Ejecución del servidor FastAPI para swagger
+```bash
+uvicorn main:app --reload
+```
+
+El servidor estará disponible en `http://localhost:8000`
+
+### Documentación Swagger UI
+
+**En desarrollo (local):**
+
+Despliegue local (opciones):
+
+- Ejecutar el servidor FastAPI (docs dinámicos):
+
+```bash
+# desde la raíz del proyecto
+uvicorn main:app --reload
+# Accede a: http://localhost:8000/docs
+# Spec YAML: http://localhost:8000/openapi.yaml
+```
+
+
+La documentación interactiva permite probar todos los endpoints del API directamente desde el navegador.
+
+**Para accerder a la documentación swagger en el deploy (acceso rápido)**
+# Ejemplos con despliegue en vercel
+
+- Swagger UI (deploy): https://end-task-five.vercel.app/docs
+- OpenAPI YAML (deploy): https://end-task-five.vercel.app/openapi.yaml
+
+Detalles de Swagger: la UI de Swagger se sirve como archivos estáticos (`public/docs/index.html`) que cargan el spec estático (`public/openapi.yaml`). Vercel entrega estos archivos como un sitio estático; el servidor FastAPI no se ejecuta en Vercel.
+
 ## Tecnologías
 - **React 18** — UI
 - **Tailwind CSS 3** — Estilos
 - **Supabase** — Backend como servicio (Base de datos + Auth)
-- **Vite** — Build tool
-- **Vite** — Bundler
+- **Vite** — Build tool y bundler
+- **FastAPI** — Framework Python para el API
+- **Pydantic** — Validación de datos
 - **localStorage** — Persistencia de datos (usuarios y sesión)
 
 ## Notas de edición

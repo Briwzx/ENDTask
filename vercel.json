@@ -1,6 +1,18 @@
 {
   "rewrites": [
     {
+      "source": "/docs",
+      "destination": "/swagger.html"
+    },
+    {
+      "source": "/swagger",
+      "destination": "/swagger.html"
+    },
+    {
+      "source": "/openapi.yaml",
+      "destination": "/openapi.yaml"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

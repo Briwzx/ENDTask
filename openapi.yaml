@@ -1,0 +1,584 @@
+openapi: 3.1.0
+info:
+  title: ENDTask API
+  description: Documentación Swagger generada automáticamente para el proyecto ENDTask.
+  version: 0.1.0
+paths:
+  /:
+    get:
+      tags:
+      - General
+      summary: Mensaje de bienvenida
+      operationId: root__get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /auth/register:
+    post:
+      tags:
+      - Auth
+      summary: Registrar nuevo usuario
+      operationId: register_auth_register_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterData'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /auth/login:
+    post:
+      tags:
+      - Auth
+      summary: Iniciar sesión de usuario
+      operationId: login_auth_login_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginData'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /users/me:
+    get:
+      tags:
+      - Usuarios
+      summary: Obtener perfil del usuario logueado
+      operationId: get_current_user_users_me_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+  /users/me/profile:
+    put:
+      tags:
+      - Usuarios
+      summary: Actualizar perfil del usuario
+      operationId: update_user_profile_users_me_profile_put
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfile'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /courses:
+    get:
+      tags:
+      - Cursos
+      summary: Listar cursos del usuario
+      operationId: get_courses_courses_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/Course'
+                type: array
+                title: Response Get Courses Courses Get
+    post:
+      tags:
+      - Cursos
+      summary: Agregar un curso
+      operationId: add_course_courses_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseBase'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /courses/{course_id}:
+    delete:
+      tags:
+      - Cursos
+      summary: Eliminar un curso
+      operationId: delete_course_courses__course_id__delete
+      parameters:
+      - name: course_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Course Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /tasks:
+    get:
+      tags:
+      - Tareas
+      summary: Listar tareas del usuario
+      operationId: get_tasks_tasks_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/Task'
+                type: array
+                title: Response Get Tasks Tasks Get
+    post:
+      tags:
+      - Tareas
+      summary: Agregar una tarea
+      operationId: add_task_tasks_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskBase'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /tasks/{task_id}:
+    put:
+      tags:
+      - Tareas
+      summary: Actualizar una tarea
+      operationId: update_task_tasks__task_id__put
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskBase'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Tareas
+      summary: Eliminar una tarea
+      operationId: delete_task_tasks__task_id__delete
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    AuthResponse:
+      properties:
+        access_token:
+          type: string
+          title: Access Token
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+        token_type:
+          type: string
+          title: Token Type
+          default: bearer
+      type: object
+      required:
+      - access_token
+      title: AuthResponse
+    Course:
+      properties:
+        nombre:
+          type: string
+          title: Nombre
+          example: Matemáticas
+        fecha:
+          type: string
+          title: Fecha
+          example: 10 Febrero
+        color:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Color
+          example: '#4F46E5'
+        id:
+          type: string
+          title: Id
+          example: course_123
+        user_id:
+          type: string
+          title: User Id
+          example: user_123
+      type: object
+      required:
+      - nombre
+      - fecha
+      - id
+      - user_id
+      title: Course
+    CourseBase:
+      properties:
+        nombre:
+          type: string
+          title: Nombre
+          example: Matemáticas
+        fecha:
+          type: string
+          title: Fecha
+          example: 10 Febrero
+        color:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Color
+          example: '#4F46E5'
+      type: object
+      required:
+      - nombre
+      - fecha
+      title: CourseBase
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    LoginData:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+          example: ana.perez@example.com
+        password:
+          type: string
+          title: Password
+          example: Secret1234
+      type: object
+      required:
+      - email
+      - password
+      title: LoginData
+    RegisterData:
+      properties:
+        nombre_completo:
+          type: string
+          title: Nombre Completo
+          example: Ana Pérez
+        email:
+          type: string
+          format: email
+          title: Email
+          example: ana.perez@example.com
+        password:
+          type: string
+          title: Password
+          example: Secret1234
+        email_institucional:
+          anyOf:
+          - type: string
+            format: email
+          - type: 'null'
+          title: Email Institucional
+          example: ana.perez@universidad.edu
+      type: object
+      required:
+      - nombre_completo
+      - email
+      - password
+      title: RegisterData
+    Settings:
+      properties:
+        limite_diario:
+          type: integer
+          title: Limite Diario
+          description: Máximo de horas permitidas por día para subtareas
+          default: 6
+      type: object
+      title: Settings
+    Subtask:
+      properties:
+        id:
+          type: string
+          title: Id
+          example: subtask_123
+        nombre:
+          type: string
+          title: Nombre
+          example: Resolver ejercicio 5
+        fecha:
+          type: string
+          title: Fecha
+          example: 12 Marzo
+        horas:
+          type: integer
+          title: Horas
+          example: 2
+        estado:
+          type: string
+          title: Estado
+          example: Pendiente
+      type: object
+      required:
+      - id
+      - nombre
+      - fecha
+      - horas
+      - estado
+      title: Subtask
+    Task:
+      properties:
+        nombre:
+          type: string
+          title: Nombre
+          example: Estudiar para examen
+        descripcion:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Descripcion
+          example: Repasar los capítulos 1 a 4
+        estado:
+          type: string
+          title: Estado
+          example: Pendiente
+        prioridad:
+          type: string
+          title: Prioridad
+          example: Alta
+        curso:
+          type: string
+          title: Curso
+          example: Matemáticas
+        inicio:
+          type: string
+          title: Inicio
+          example: 10 Febrero
+        fin:
+          type: string
+          title: Fin
+          example: 15 Febrero
+        subtareas:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/Subtask'
+            type: array
+          - type: 'null'
+          title: Subtareas
+          default: []
+        id:
+          type: string
+          title: Id
+          example: task_123
+        user_id:
+          type: string
+          title: User Id
+          example: user_123
+      type: object
+      required:
+      - nombre
+      - estado
+      - prioridad
+      - curso
+      - inicio
+      - fin
+      - id
+      - user_id
+      title: Task
+    TaskBase:
+      properties:
+        nombre:
+          type: string
+          title: Nombre
+          example: Estudiar para examen
+        descripcion:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Descripcion
+          example: Repasar los capítulos 1 a 4
+        estado:
+          type: string
+          title: Estado
+          example: Pendiente
+        prioridad:
+          type: string
+          title: Prioridad
+          example: Alta
+        curso:
+          type: string
+          title: Curso
+          example: Matemáticas
+        inicio:
+          type: string
+          title: Inicio
+          example: 10 Febrero
+        fin:
+          type: string
+          title: Fin
+          example: 15 Febrero
+        subtareas:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/Subtask'
+            type: array
+          - type: 'null'
+          title: Subtareas
+          default: []
+      type: object
+      required:
+      - nombre
+      - estado
+      - prioridad
+      - curso
+      - inicio
+      - fin
+      title: TaskBase
+    UserProfile:
+      properties:
+        id:
+          type: string
+          title: Id
+          example: user_123
+        nombre_completo:
+          type: string
+          title: Nombre Completo
+          example: Ana Pérez
+        email:
+          type: string
+          format: email
+          title: Email
+          example: ana.perez@example.com
+        settings:
+          $ref: '#/components/schemas/Settings'
+      type: object
+      required:
+      - id
+      - nombre_completo
+      - email
+      title: UserProfile
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

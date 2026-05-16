@@ -1,0 +1,339 @@
+openapi: 3.0.0
+info:
+  title: ENDTask API
+  version: 0.1.0
+  description: Documentación YAML para la API de ENDTask
+paths:
+  /:
+    get:
+      summary: Mensaje de bienvenida
+      responses:
+        '200':
+          description: Saludo de bienvenida
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Bienvenido a ENDTask API"
+  /auth/register:
+    post:
+      summary: Registrar nuevo usuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterData'
+      responses:
+        '200':
+          description: Usuario registrado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+  /auth/login:
+    post:
+      summary: Autenticar usuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginData'
+      responses:
+        '200':
+          description: Autenticación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+  /users/me:
+    get:
+      summary: Obtener perfil del usuario
+      responses:
+        '200':
+          description: Perfil del usuario autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+  /users/me/profile:
+    put:
+      summary: Actualizar perfil del usuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfile'
+      responses:
+        '200':
+          description: Perfil actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+  /courses:
+    get:
+      summary: Listar cursos del usuario
+      responses:
+        '200':
+          description: Lista de cursos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Course'
+    post:
+      summary: Agregar un curso
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseBase'
+      responses:
+        '200':
+          description: Curso creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+  /courses/{course_id}:
+    delete:
+      summary: Eliminar un curso
+      parameters:
+        - name: course_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Curso eliminado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  id:
+                    type: string
+  /tasks:
+    get:
+      summary: Listar tareas del usuario
+      responses:
+        '200':
+          description: Lista de tareas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+    post:
+      summary: Agregar una tarea
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskBase'
+      responses:
+        '200':
+          description: Tarea creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+  /tasks/{task_id}:
+    put:
+      summary: Actualizar una tarea
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskBase'
+      responses:
+        '200':
+          description: Tarea actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+    delete:
+      summary: Eliminar una tarea
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tarea eliminada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  id:
+                    type: string
+components:
+  schemas:
+    Settings:
+      type: object
+      properties:
+        limite_diario:
+          type: integer
+          example: 6
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "user_123"
+        nombre_completo:
+          type: string
+          example: "Ana Pérez"
+        email:
+          type: string
+          format: email
+          example: "ana.perez@example.com"
+        settings:
+          $ref: '#/components/schemas/Settings'
+    RegisterData:
+      type: object
+      properties:
+        nombre_completo:
+          type: string
+          example: "Ana Pérez"
+        email:
+          type: string
+          format: email
+          example: "ana.perez@example.com"
+        password:
+          type: string
+          example: "Secret1234"
+        email_institucional:
+          type: string
+          format: email
+          example: "ana.perez@universidad.edu"
+      required: [nombre_completo, email, password]
+    LoginData:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          example: "ana.perez@example.com"
+        password:
+          type: string
+          example: "Secret1234"
+      required: [email, password]
+    AuthResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: "token_de_ejemplo"
+        token_type:
+          type: string
+          example: "bearer"
+    CourseBase:
+      type: object
+      properties:
+        nombre:
+          type: string
+          example: "Matemáticas"
+        fecha:
+          type: string
+          example: "10 Febrero"
+        color:
+          type: string
+          example: "#4F46E5"
+      required: [nombre, fecha]
+    Course:
+      allOf:
+        - $ref: '#/components/schemas/CourseBase'
+        - type: object
+          properties:
+            id:
+              type: string
+              example: "course_123"
+            user_id:
+              type: string
+              example: "user_123"
+    Subtask:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "subtask_123"
+        nombre:
+          type: string
+          example: "Resolver ejercicio 5"
+        fecha:
+          type: string
+          example: "12 Febrero"
+        horas:
+          type: integer
+          example: 2
+        estado:
+          type: string
+          example: "Pendiente"
+      required: [id, nombre, fecha, horas, estado]
+    TaskBase:
+      type: object
+      properties:
+        nombre:
+          type: string
+          example: "Estudiar para examen"
+        descripcion:
+          type: string
+          example: "Repasar los capítulos 1 a 4"
+        estado:
+          type: string
+          example: "Pendiente"
+        prioridad:
+          type: string
+          example: "Alta"
+        curso:
+          type: string
+          example: "Matemáticas"
+        inicio:
+          type: string
+          example: "10 Febrero"
+        fin:
+          type: string
+          example: "15 Febrero"
+        subtareas:
+          type: array
+          items:
+            $ref: '#/components/schemas/Subtask'
+      required: [nombre, estado, prioridad, curso, inicio, fin]
+    Task:
+      allOf:
+        - $ref: '#/components/schemas/TaskBase'
+        - type: object
+          properties:
+            id:
+              type: string
+              example: "task_123"
+            user_id:
+              type: string
+              example: "user_123"
