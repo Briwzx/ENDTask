@@ -1,0 +1,32 @@
+.custom-swagger-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 16px 24px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.custom-swagger-logo {
+  width: 200px;
+  height: auto;
+}
+
+.custom-swagger-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.custom-swagger-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e3a8a;
+}
+
+.custom-swagger-version {
+  font-size: 0.95rem;
+  color: #334155;
+}

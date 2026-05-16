@@ -52,12 +52,34 @@ npm run dev
 http://localhost:5174
 ```
 
+## Backend y API
+
+### Ejecutar el servidor FastAPI para swagger
+```bash
+uvicorn main:app --reload
+```
+
+El servidor estará disponible en `http://localhost:8000`
+
+### Documentación Swagger UI
+
+**En desarrollo (local):**
+- Swagger UI: `http://localhost:8000/docs`
+- OpenAPI YAML: `http://localhost:8000/openapi.yaml`
+
+**En producción (Vercel) intentar estas rutas:**
+- Swagger UI: `https://<tu-app>.vercel.app/docs`
+- OpenAPI YAML: `https://<tu-app>.vercel.app/openapi.yaml`
+
+La documentación interactiva permite probar todos los endpoints del API directamente desde el navegador.
+
 ## Tecnologías
 - **React 18** — UI
 - **Tailwind CSS 3** — Estilos
 - **Supabase** — Backend como servicio (Base de datos + Auth)
-- **Vite** — Build tool
-- **Vite** — Bundler
+- **Vite** — Build tool y bundler
+- **FastAPI** — Framework Python para el API
+- **Pydantic** — Validación de datos
 - **localStorage** — Persistencia de datos (usuarios y sesión)
 
 ## Notas de edición

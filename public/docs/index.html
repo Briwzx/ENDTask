@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ENDTask API - Swagger</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css" />
+    <style>
+      body {
+        margin: 0;
+      }
+      .custom-swagger-banner {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin: 16px;
+        padding: 16px;
+        border-radius: 14px;
+        background: rgba(59, 130, 246, 0.08);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+      }
+      .custom-swagger-logo {
+        width: 120px;
+        height: auto;
+      }
+      .custom-swagger-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .custom-swagger-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #1e3a8a;
+      }
+      .custom-swagger-version {
+        font-size: 0.95rem;
+        color: #334155;
+      }
+      #swagger-ui {
+        margin-top: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="custom-swagger-banner">
+      <img class="custom-swagger-logo" src="https://static1.smartbear.co/swagger/media/assets/images/swagger_logo.svg" alt="Swagger logo" />
+      <div class="custom-swagger-meta">
+        <div class="custom-swagger-title">Swagger UI</div>
+        <div class="custom-swagger-version">Versión del API: 0.1.0</div>
+      </div>
+    </div>
+    <div id="swagger-ui"></div>
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
+    <script>
+      SwaggerUIBundle({
+        url: "/openapi.yaml",
+        dom_id: "#swagger-ui",
+        presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+        layout: "BaseLayout",
+        deepLinking: true,
+      });
+    </script>
+  </body>
+</html>

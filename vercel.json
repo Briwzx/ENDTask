@@ -1,6 +1,22 @@
 {
   "rewrites": [
     {
+      "source": "/docs",
+      "destination": "/docs/index.html"
+    },
+    {
+      "source": "/docs/:path*",
+      "destination": "/docs/:path*"
+    },
+    {
+      "source": "/openapi.yaml",
+      "destination": "/openapi.yaml"
+    },
+    {
+      "source": "/static/:path*",
+      "destination": "/static/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
