@@ -5,6 +5,10 @@
       "destination": "/swagger.html"
     },
     {
+      "source": "/swagger",
+      "destination": "/swagger.html"
+    },
+    {
       "source": "/openapi.yaml",
       "destination": "/openapi.yaml"
     },
