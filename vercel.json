@@ -1,12 +1,9 @@
 {
-  "redirects": [
+  "rewrites": [
     {
       "source": "/docs",
-      "destination": "/docs/index.html",
-      "permanent": true
-    }
-  ],
-  "rewrites": [
+      "destination": "/docs/index.html"
+    },
     {
       "source": "/docs/:path*",
       "destination": "/docs/:path*"
@@ -16,16 +13,9 @@
       "destination": "/openapi.yaml"
     },
     {
-      "source": "/swagger.html",
-      "destination": "/swagger.html"
-    },
-    {
-      "source": "/static/:path*",
-      "destination": "/static/:path*"
-    },
-    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
 }
+
