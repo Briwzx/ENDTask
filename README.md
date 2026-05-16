@@ -82,8 +82,8 @@ La documentación interactiva permite probar todos los endpoints del API directa
 **Para accerder a la documentación swagger en el deploy (acceso rápido)**
 # Ejemplos con despliegue en vercel
 
-- Swagger UI (deploy): https://end-task-five.vercel.app/docs
-- OpenAPI YAML (deploy): https://end-task-five.vercel.app/openapi.yaml
+- Swagger UI (deploy): https://end-task-phi.vercel.app/docs
+- OpenAPI YAML (deploy): https://end-task-phi.vercel.app/openapi.yaml
 
 Detalles de Swagger: la UI de Swagger se sirve como archivos estáticos (`public/docs/index.html`) que cargan el spec estático (`public/openapi.yaml`). Vercel entrega estos archivos como un sitio estático; el servidor FastAPI no se ejecuta en Vercel.
 
